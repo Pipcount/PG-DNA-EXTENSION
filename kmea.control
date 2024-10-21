@@ -1,0 +1,5 @@
+# kmea extension
+comment = 'K-Mer Extension for Analysis'
+default_version = '1.0'
+module_pathname = '$libdir/kmea'
+relocatable = true
