@@ -1,0 +1,1 @@
+- ### Since the nucleotides are case-insensitive, do we have to remember the case of the nucleotides? Or can we always show uppercase letters, but accept both uppercase and lowercase letters as input?

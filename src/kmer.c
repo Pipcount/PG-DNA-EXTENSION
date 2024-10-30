@@ -26,17 +26,15 @@ static Kmer* make_kmer(const char *str, uint8_t length) {
 
 	for (uint8_t i = 0; i < length; i++) {
 		char c = str[i];
-		if (c == 'A') {
-			kmer -> value = (kmer -> value << 2) | 0b00;
-		} else if (c == 'C') {
-			kmer -> value = (kmer -> value << 2) | 0b01;
-		} else if (c == 'G') {
-			kmer -> value = (kmer -> value << 2) | 0b10;
-		} else if (c == 'T') {
-			kmer -> value = (kmer -> value << 2) | 0b11;
-		} else {
-			ereport(ERROR, (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-	  	errmsg("invalid nucleotide")));
+		switch (c) {
+			case 'A': kmer -> value = (kmer -> value << 2) | 0b00; break;
+			case 'C': kmer -> value = (kmer -> value << 2) | 0b01; break;
+			case 'G': kmer -> value = (kmer -> value << 2) | 0b10; break;
+			case 'T': kmer -> value = (kmer -> value << 2) | 0b11; break;
+			default:
+				ereport(ERROR, (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+				errmsg("invalid nucleotide")));
+				break;
 		}
 	}
 	//! elog(INFO, "kmer value after make_kmer: %lu", kmer -> value);

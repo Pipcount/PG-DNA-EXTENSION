@@ -1,3 +1,6 @@
+-- -------------- --
+-- Kmer data type --
+-- -------------- --
 CREATE OR REPLACE FUNCTION kmer_in(cstring)
 RETURNS kmer
 AS '$libdir/kmer'
@@ -43,3 +46,35 @@ CREATE OR REPLACE FUNCTION length(kmer)
 RETURNS integer
 AS '$libdir/kmer', 'kmer_length'
 LANGUAGE C IMMUTABLE STRICT;
+
+
+
+-- -------------- --
+-- DNA data type  --
+-- -------------- --
+CREATE OR REPLACE FUNCTION dna_in(cstring)
+RETURNS DNA
+AS '$libdir/dna'
+LANGUAGE C IMMUTABLE STRICT;
+
+CREATE OR REPLACE FUNCTION dna_out(DNA)
+RETURNS cstring
+AS '$libdir/dna'
+LANGUAGE C IMMUTABLE STRICT;
+
+-- CREATE OR REPLACE FUNCTION dna_recv(internal)
+-- RETURNS DNA
+-- AS '$libdir/dna'
+-- LANGUAGE C IMMUTABLE STRICT;
+
+-- CREATE OR REPLACE FUNCTION dna_send(DNA)
+-- RETURNS bytea
+-- AS '$libdir/dna'
+-- LANGUAGE C IMMUTABLE STRICT;
+
+CREATE TYPE DNA (
+    INPUT = dna_in,
+    OUTPUT = dna_out
+    -- RECEIVE = dna_recv,
+    -- SEND = dna_send
+);

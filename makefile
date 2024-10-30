@@ -1,5 +1,5 @@
 EXTENSION   = kmea
-MODULES     = src/kmer
+MODULES     = src/kmer src/dna
 DATA        = kmea--1.0.sql kmea.control
 
 PG_CONFIG ?= pg_config

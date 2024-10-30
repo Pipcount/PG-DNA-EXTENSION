@@ -1,15 +1,21 @@
-DROP TABLE IF EXISTS t;
+DROP TABLE IF EXISTS kmers; 
+DROP TABLE IF EXISTS DNAs;
 DROP EXTENSION IF EXISTS kmea;
 
 CREATE EXTENSION kmea;
-CREATE TABLE t(id integer, kmer kmer);
+CREATE TABLE kmers(id integer, kmer kmer);
+CREATE TABLE DNAs(id integer, dna DNA);
 
-INSERT INTO t VALUES 
+INSERT INTO kmers VALUES 
 (1, 'ACGTT'),
 (2, 'ACTGTTTTTTT'),
 (3, 'A'),
 (4, 'ATCTACTCATCATACTGATCGATTAGCTGATG');
 
-SELECT * FROM t;
+SELECT * FROM kmers;
+select length(kmer), kmer from kmers;
 
-select length(kmer), kmer from t;
+INSERT INTO DNAs VALUES 
+(1, 'ATCG');
+
+SELECT * FROM DNAs;

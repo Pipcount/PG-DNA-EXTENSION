@@ -2,11 +2,14 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
 
 typedef struct Kmer {
 	uint64_t value;	// kmer value
 	uint8_t k;  // kmer length
 } Kmer;
+
+typedef int64_t DNA;
 
 
 static Kmer* make_kmer(const char *str, uint8_t length) {
@@ -69,9 +72,21 @@ static char* generate_kmer(uint8_t length) {
     return kmer;
 }
 
-void print_binary(Kmer* kmer) {
-    for (int i = 8*sizeof(kmer->value); i > 0 ; i--){
-        int k = kmer->value >> (i - 1);
+// void print_binary(Kmer* kmer) {
+//     for (int i = 8*sizeof(kmer->value); i > 0 ; i--){
+//         int k = kmer->value >> (i - 1);
+//         if (k & 1) {
+//             printf("1");
+//         } else {
+//             printf("0");
+//         }
+//     }
+//     printf("\n");
+// }
+
+void print_binary(DNA* Dna) {
+    for (int i = 8*sizeof(Dna); i > 0 ; i--){
+        int k = *Dna >> (i - 1);
         if (k & 1) {
             printf("1");
         } else {
@@ -81,15 +96,69 @@ void print_binary(Kmer* kmer) {
     printf("\n");
 }
 
-int main() {
-    uint8_t length = 4;
-    char* kmer_str = generate_kmer(length);
-    printf("kmer: %s\n", kmer_str);
-    Kmer* kmer = make_kmer(kmer_str, length);
 
-    print_binary(kmer);
-    print_kmer(kmer);
-    free(kmer);
-    free(kmer_str);
+static void store_last_byte_mask(DNA* dna, uint32_t length) {
+    uint8_t* data_ptr = malloc(sizeof(uint8_t));
+    uint8_t last_byte_mask = 0b11111111;
+    for (uint32_t i = 0; i < length % 4; i++) {
+        last_byte_mask = (last_byte_mask << 2) | 0b11;
+    }
+
+    *data_ptr = last_byte_mask;
+    printf("%d\n", *data_ptr);
+    free(data_ptr);
+}
+
+static DNA* make_dna(const char* str, uint32_t length) {
+    DNA* dna = malloc(sizeof(dna));
+    for (uint32_t i = 0; i < length; i += 4) {
+        uint8_t current_byte = 0b00000000;
+        for (char j = 0; j < 4; j++) {
+            char c = str[i + j];
+            if (i + j >= length) {
+                current_byte = (current_byte << 2) | 0b00;
+                continue;
+            }
+            if (c == 'A') {
+                current_byte = (current_byte << 2) | 0b00;
+            } else if (c == 'C') {
+                current_byte = (current_byte << 2) | 0b01;
+            } else if (c == 'G') {
+                current_byte = (current_byte << 2) | 0b10;
+            } else if (c == 'T') {
+                current_byte = (current_byte << 2) | 0b11;
+            } else {
+                printf("invalid nucleotide\n");
+            }
+        }
+        *dna = *dna << 8 | current_byte;
+    }
+    return dna; 
+}
+
+uint8_t create_last_byte_mask(uint8_t len_remainder) {
+    uint8_t mask = (1 << (len_remainder * 2)) - 1;
+    return mask << (8 - (len_remainder * 2));
+}
+int main() {
+    // uint8_t length = 4;
+    // char* kmer_str = generate_kmer(length);
+    // printf("kmer: %s\n", kmer_str);
+    // Kmer* kmer = make_kmer(kmer_str, length);
+
+    // print_binary(kmer);
+    // print_kmer(kmer);
+    // free(kmer);
+    // free(kmer_str);
+
+    // char* dna_seq = "TCGATC";
+    // DNA* dna = make_dna(dna_seq, strlen(dna_seq));
+    // print_binary(dna);
+    // free(dna);
+
+    printf("Mask for 6 bits: %02X\n", create_last_byte_mask(3));  // 11111100 -> FC
+    printf("Mask for 2 bits: %02X\n", create_last_byte_mask(1));  // 11000000 -> C0
+    printf("Mask for 8 bits: %02X\n", create_last_byte_mask(4));  // 11111111 -> FF
+    printf("Mask for 8 bits: %02X\n", create_last_byte_mask(2));  // 11111111 -> FF
     return 0;
 }
