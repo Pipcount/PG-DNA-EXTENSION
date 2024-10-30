@@ -136,3 +136,10 @@ kmer_cast_to_text(PG_FUNCTION_ARGS)
   PG_RETURN_TEXT_P(out);
 }
 
+PG_FUNCTION_INFO_V1(kmer_length);
+Datum
+kmer_length(PG_FUNCTION_ARGS)
+{
+  Kmer* kmer  = PG_GETARG_KMER_P(0);
+  PG_RETURN_CHAR(kmer -> k);
+}

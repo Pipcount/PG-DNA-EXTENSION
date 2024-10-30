@@ -38,3 +38,8 @@ LANGUAGE C IMMUTABLE STRICT;
 
 CREATE CAST (text as kmer) WITH FUNCTION kmer(text) AS IMPLICIT;
 CREATE CAST (kmer as text) WITH FUNCTION text(kmer);
+
+CREATE OR REPLACE FUNCTION length(kmer)
+RETURNS integer
+AS '$libdir/kmer', 'kmer_length'
+LANGUAGE C IMMUTABLE STRICT;
