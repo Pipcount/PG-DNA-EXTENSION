@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "postgres.h"
+#include "fmgr.h"
 
 PG_MODULE_MAGIC;
 
