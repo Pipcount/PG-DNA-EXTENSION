@@ -49,6 +49,9 @@ static Kmer* kmer_parse(const char* str) {
 	if (length > 32) {
 		ereport(ERROR, (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
       	errmsg("kmer should not exceed 32 nucleotides")));
+	} else if (length == 0) {
+		ereport(ERROR, (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+	  	errmsg("kmer should not be empty")));
 	}
 	return make_kmer(str, length);
 }
