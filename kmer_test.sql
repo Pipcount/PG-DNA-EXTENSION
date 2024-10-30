@@ -5,6 +5,8 @@ CREATE EXTENSION kmea;
 CREATE TABLE t(id integer, kmer kmer);
 
 INSERT INTO t VALUES 
-(1, 'ACGT');
+(1, 'ACGTT'),
+(2, 'ACTGTTTTTTT'),
+(3, 'A');
 
 SELECT * FROM t;

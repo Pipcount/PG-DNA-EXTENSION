@@ -82,7 +82,7 @@ void print_binary(Kmer* kmer) {
 }
 
 int main() {
-    uint8_t length = 32;
+    uint8_t length = 4;
     char* kmer_str = generate_kmer(length);
     printf("kmer: %s\n", kmer_str);
     Kmer* kmer = make_kmer(kmer_str, length);
