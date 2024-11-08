@@ -62,19 +62,31 @@ RETURNS cstring
 AS '$libdir/dna'
 LANGUAGE C IMMUTABLE STRICT;
 
--- CREATE OR REPLACE FUNCTION dna_recv(internal)
--- RETURNS DNA
--- AS '$libdir/dna'
--- LANGUAGE C IMMUTABLE STRICT;
+CREATE OR REPLACE FUNCTION dna_recv(internal)
+RETURNS DNA
+AS '$libdir/dna'
+LANGUAGE C IMMUTABLE STRICT;
 
--- CREATE OR REPLACE FUNCTION dna_send(DNA)
--- RETURNS bytea
--- AS '$libdir/dna'
--- LANGUAGE C IMMUTABLE STRICT;
+CREATE OR REPLACE FUNCTION dna_send(DNA)
+RETURNS bytea
+AS '$libdir/dna'
+LANGUAGE C IMMUTABLE STRICT;
 
 CREATE TYPE DNA (
     INPUT = dna_in,
-    OUTPUT = dna_out
-    -- RECEIVE = dna_recv,
-    -- SEND = dna_send
+    OUTPUT = dna_out,
+    RECEIVE = dna_recv,
+    SEND = dna_send
 );
+
+
+CREATE OR REPLACE FUNCTION length(dna)
+RETURNS integer
+AS '$libdir/dna', 'dna_length'
+LANGUAGE C IMMUTABLE STRICT;
+
+
+CREATE OR REPLACE FUNCTION generate_kmers(dna, integer)
+RETURNS SETOF kmer
+AS '$libdir/dna', 'dna_generate_kmers'
+LANGUAGE C IMMUTABLE STRICT;

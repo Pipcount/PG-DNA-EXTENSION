@@ -140,6 +140,28 @@ uint8_t create_last_byte_mask(uint8_t len_remainder) {
     uint8_t mask = (1 << (len_remainder * 2)) - 1;
     return mask << (8 - (len_remainder * 2));
 }
+
+void dna_generate_kmers() {
+    char* str = 'ATGCATGC';
+    DNA* dna = make_dna(str, strlen(str));
+    uint8_t kmer_length = 6;
+    uint32_t length = strlen(dna);
+    
+    uint8_t* byte_ptr = *dna;
+    uint8_t* start_ptr = *byte_ptr;
+    uint8_t nucleotide_ctr = 0;
+    
+    while (byte_ptr - start_ptr < (length - kmer_length) / 4) {
+        Kmer* kmer = malloc(sizeof(Kmer));
+        kmer->value = 0;
+        kmer->k = kmer_length;
+        
+
+
+    }
+
+}
+
 int main() {
     // uint8_t length = 4;
     // char* kmer_str = generate_kmer(length);
@@ -156,9 +178,10 @@ int main() {
     // print_binary(dna);
     // free(dna);
 
-    printf("Mask for 6 bits: %02X\n", create_last_byte_mask(3));  // 11111100 -> FC
-    printf("Mask for 2 bits: %02X\n", create_last_byte_mask(1));  // 11000000 -> C0
-    printf("Mask for 8 bits: %02X\n", create_last_byte_mask(4));  // 11111111 -> FF
-    printf("Mask for 8 bits: %02X\n", create_last_byte_mask(2));  // 11111111 -> FF
+    //printf("Mask for 6 bits: %02X\n", create_last_byte_mask(3));  // 11111100 -> FC
+    //printf("Mask for 2 bits: %02X\n", create_last_byte_mask(1));  // 11000000 -> C0
+    //printf("Mask for 8 bits: %02X\n", create_last_byte_mask(4));  // 11111111 -> FF
+    //printf("Mask for 8 bits: %02X\n", create_last_byte_mask(2));  // 11111111 -> FF
+
     return 0;
 }

@@ -16,6 +16,13 @@ SELECT * FROM kmers;
 select length(kmer), kmer from kmers;
 
 INSERT INTO DNAs VALUES 
-(1, 'ATCG');
+(1, 'ATCGG'),
+(2, 'ATATATATATATATATA');
 
 SELECT * FROM DNAs;
+
+select length(dna), dna
+from DNAs;
+
+select k.kmer
+from generate_kmers('ACGTACGTTG', 3) as  k(kmer);

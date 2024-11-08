@@ -1,23 +1,6 @@
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
-#include "postgres.h"
-#include "fmgr.h"
-
-#include "libpq/pqformat.h"
-#include "utils/fmgrprotos.h"
-#include "utils/elog.h"
+#include "kmer.h"
 
 PG_MODULE_MAGIC;
-typedef struct Kmer {
-	uint64_t value;	// kmer value
-	uint8_t k;  // kmer length
-} Kmer;
-
-#define DatumGetKmerP(X)  ((Kmer *) DatumGetPointer(X))
-#define KmerPGetDatum(X)  PointerGetDatum(X)
-#define PG_GETARG_KMER_P(n) DatumGetKmerP(PG_GETARG_DATUM(n))
-#define PG_RETURN_KMER_P(x) return KmerPGetDatum(x)
 
 static Kmer* make_kmer(const char *str, uint8_t length) {
 	Kmer* kmer = palloc0(sizeof(Kmer));
