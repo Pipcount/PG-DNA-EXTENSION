@@ -57,6 +57,16 @@ static char* kmer_value_to_string(Kmer* kmer) {
 	str[kmer->k] = '\0';
 	return psprintf("%s", str);
 }
+
+static bool internal_kmer_startswith(Kmer* kmer, Kmer* prefix) {
+	if (kmer -> k < prefix -> k) {
+		ereport(ERROR, (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+	  	errmsg("kmer should not be shorter than prefix")));
+		return false;
+	}
+	uint64_t extracted_from_kmer = kmer -> value >> (kmer -> k - prefix -> k) * 2;
+	return extracted_from_kmer == prefix -> value;
+}
 /* ************************************************************************** */
 
 PG_FUNCTION_INFO_V1(kmer_in);
@@ -125,5 +135,28 @@ Datum
 kmer_length(PG_FUNCTION_ARGS)
 {
   Kmer* kmer  = PG_GETARG_KMER_P(0);
-  PG_RETURN_CHAR(kmer -> k);
+  uint8_t length = kmer -> k;
+  PG_FREE_IF_COPY(kmer, 0);
+  PG_RETURN_CHAR(length);
 }
+
+PG_FUNCTION_INFO_V1(kmer_eq);
+Datum kmer_eq(PG_FUNCTION_ARGS) {
+	Kmer *a = PG_GETARG_KMER_P(0);
+	Kmer *b = PG_GETARG_KMER_P(1);
+	bool result = KMER_EQUAL(a, b);
+	PG_FREE_IF_COPY(a, 0);
+	PG_FREE_IF_COPY(b, 1);
+	PG_RETURN_BOOL(result);
+}
+
+PG_FUNCTION_INFO_V1(kmer_startswith);
+Datum kmer_startswith(PG_FUNCTION_ARGS) {
+	Kmer *kmer = PG_GETARG_KMER_P(0);
+	Kmer *prefix = PG_GETARG_KMER_P(1);
+	bool result = internal_kmer_startswith(kmer, prefix);
+	PG_FREE_IF_COPY(kmer, 0);
+	PG_FREE_IF_COPY(prefix, 1);
+	PG_RETURN_BOOL(result);
+}
+

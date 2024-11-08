@@ -14,6 +14,10 @@ INSERT INTO kmers VALUES
 
 SELECT * FROM kmers;
 select length(kmer), kmer from kmers;
+SELECT * FROM kmers WHERE equals('ACGTT', kmer);
+SELECT * FROM kmers WHERE kmer = 'ACGTA';
+SELECT * FROM kmers WHERE kmer ^@ 'ACGTA';
+SELECT * FROM kmers WHERE kmer ^@ 'ACGT';
 
 INSERT INTO DNAs VALUES 
 (1, 'ATCGG'),
@@ -25,4 +29,6 @@ select length(dna), dna
 from DNAs;
 
 select k.kmer
-from generate_kmers('ACGTACGT', 6) as  k(kmer);
+from generate_kmers('ACGTACGT', 4) as  k(kmer)
+WHERE k.kmer ^@ 'ACGT';
+
