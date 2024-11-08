@@ -25,4 +25,4 @@ select length(dna), dna
 from DNAs;
 
 select k.kmer
-from generate_kmers('ACGTACGTTG', 3) as  k(kmer);
+from generate_kmers('ACGTACGT', 6) as  k(kmer);

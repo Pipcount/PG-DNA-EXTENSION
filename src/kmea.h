@@ -17,5 +17,11 @@ typedef struct Kmer {
 	uint8_t k;  // kmer length
 } Kmer;
 
+// Define macros for Kmer because we use a struct to represent a Kmer
+#define DatumGetKmerP(X)  ((Kmer *) DatumGetPointer(X))
+#define KmerPGetDatum(X)  PointerGetDatum(X)
+#define PG_GETARG_KMER_P(n) DatumGetKmerP(PG_GETARG_DATUM(n))
+#define PG_RETURN_KMER_P(x) return KmerPGetDatum(x)
+
 
 #endif

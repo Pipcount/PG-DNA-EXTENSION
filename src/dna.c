@@ -84,27 +84,6 @@ static uint32_t get_dna_sequence_length(DNA* dna) {
     return length_in_bytes - (4 - last_byte_length);
 }
 
-static char* kmer_value_to_string(Kmer* kmer) {
-	char str[32];
-	//! elog(INFO, "kmer value (kmer_value_to_string): %lu", kmer -> value);
-	for (uint8_t i = 0; i < kmer -> k; i++) {
-        uint8_t shift = (kmer -> k - i - 1) * 2;
-        uint8_t nucleotide = (kmer -> value >> shift) & 0b11;
-
-        if (nucleotide == 0b00) {
-            str[i] = 'A';
-        } else if (nucleotide == 0b01) {
-            str[i] = 'C';
-        } else if (nucleotide == 0b10) {
-            str[i] = 'G';
-        } else if (nucleotide == 0b11) {
-            str[i] = 'T';
-        }
-    }
-	str[kmer->k] = '\0';
-	return psprintf("%s", str);
-}
-
 static Kmer* generate_kmer_subsequence(uint8_t* byte_ptr, uint8_t nucleotide_ctr, uint8_t kmer_length) {
     Kmer* kmer = palloc0(sizeof(Kmer));
     kmer->value = 0;
@@ -121,6 +100,18 @@ static Kmer* generate_kmer_subsequence(uint8_t* byte_ptr, uint8_t nucleotide_ctr
         nucleotide_ctr++;
     }
     return kmer;
+}
+
+void init_kmer_generator_state(KmerGeneratorState *state, DNA *dna, FuncCallContext *funcctx) {
+    if (state->kmer_length > 32) {
+        errmsg("You cannot generate a kmer that is longer than 32 nucleotides.");
+    }
+    state->length = get_dna_sequence_length(dna);
+    state->byte_ptr = (uint8_t *)VARDATA(dna);
+    state->nucleotide_ctr = 0;
+    state->byte_ptr++; // skip first byte for last byte length
+
+    funcctx->max_calls = state->length - state->kmer_length + 1; // number of kmers to generate
 }
 
 
@@ -169,24 +160,41 @@ Datum dna_length(PG_FUNCTION_ARGS) {
 
 PG_FUNCTION_INFO_V1(dna_generate_kmers);
 Datum dna_generate_kmers(PG_FUNCTION_ARGS) {
-    // Declarations
-    DNA* dna = PG_GETARG_BYTEA_P(0);
-    uint8_t kmer_length = (uint8_t) PG_GETARG_UINT16(1);
-    if (kmer_length > 32) {
-        errmsg("You cannot generate a kmer that is longer than 32 nucleotides.");
-    }
-    uint32_t length = get_dna_sequence_length(dna);
-    uint8_t* byte_ptr = (uint8_t*) VARDATA(dna);
-    uint8_t nucleotide_ctr = 0;
-    byte_ptr++; // skip first byte for last byte length
+    FuncCallContext *funcctx;
 
-    for (uint32_t nb_kmers = 0; nb_kmers < (length - kmer_length + 1); nb_kmers++) {
-        Kmer* kmer_subsequence = generate_kmer_subsequence(byte_ptr, nucleotide_ctr, kmer_length);
-        if (++nucleotide_ctr == 4) {
-            nucleotide_ctr = 0;
-            byte_ptr++;
+    if (SRF_IS_FIRSTCALL()) {
+        MemoryContext oldcontext;
+        funcctx = SRF_FIRSTCALL_INIT();
+        oldcontext = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
+
+        // Store state that needs to persist across calls
+        funcctx->user_fctx = palloc0(sizeof(KmerGeneratorState));
+        KmerGeneratorState *state = (KmerGeneratorState *) funcctx->user_fctx;
+
+        DNA* dna = PG_GETARG_BYTEA_P(0);
+        state->kmer_length = (uint8_t) PG_GETARG_UINT16(1);
+        init_kmer_generator_state(state, dna, funcctx);
+
+        MemoryContextSwitchTo(oldcontext);
+    }
+
+    funcctx = SRF_PERCALL_SETUP();
+    KmerGeneratorState *state = (KmerGeneratorState *) funcctx->user_fctx;
+
+   
+    if (funcctx->call_cntr < funcctx->max_calls) {
+        Kmer* kmer = generate_kmer_subsequence(state->byte_ptr, state->nucleotide_ctr, state->kmer_length);
+        
+        if (++state->nucleotide_ctr == 4) {
+            state->nucleotide_ctr = 0;
+            state->byte_ptr++;
         }
-        elog(INFO, "kmer: %s", kmer_value_to_string(kmer_subsequence));
+        
+        // Convert kmer to text for return
+        SRF_RETURN_NEXT(funcctx, KmerPGetDatum(kmer));
+    } else {
+        SRF_RETURN_DONE(funcctx);
     }
-
 }
+
+
