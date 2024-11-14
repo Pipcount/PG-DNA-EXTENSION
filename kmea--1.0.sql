@@ -105,13 +105,44 @@ CREATE TYPE DNA (
 );
 
 
-CREATE OR REPLACE FUNCTION length(dna)
+CREATE OR REPLACE FUNCTION length(DNA)
 RETURNS integer
 AS '$libdir/dna', 'dna_length'
 LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
 
-CREATE OR REPLACE FUNCTION generate_kmers(dna, integer)
+CREATE OR REPLACE FUNCTION generate_kmers(DNA, integer)
 RETURNS SETOF kmer
 AS '$libdir/dna', 'dna_generate_kmers'
 LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+-- -------------- --
+-- qkmer data type  --
+-- -------------- --
+
+CREATE OR REPLACE FUNCTION qkmer_in(cstring)
+RETURNS qkmer
+AS '$libdir/qkmer'
+LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+CREATE OR REPLACE FUNCTION qkmer_out(qkmer)
+RETURNS cstring
+AS '$libdir/qkmer'
+LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+CREATE OR REPLACE FUNCTION qkmer_recv(internal)
+RETURNS qkmer
+AS '$libdir/qkmer'
+LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+CREATE OR REPLACE FUNCTION qkmer_send(qkmer)
+RETURNS bytea
+AS '$libdir/qkmer'
+LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+CREATE TYPE qkmer (
+	INPUT = qkmer_in,
+	OUTPUT = qkmer_out,
+	RECEIVE = qkmer_recv,
+	SEND = qkmer_send
+);

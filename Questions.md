@@ -3,3 +3,5 @@
 
 - ### Q: Is the qkmer type's purpose to be stored in the DB or is it only used for querying?
   - #### A: Only querying, but still need to create a type
+
+- ### Q: The cast for the DNA datatype seems to be implicit, do we need to add the cast explicitly ? 

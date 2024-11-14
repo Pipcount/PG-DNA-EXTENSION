@@ -23,14 +23,10 @@ static DNA* make_dna(const char* str, uint32_t length) {
                 current_byte <<= 2;
                 continue;
             }
-            switch (c) {
-                case 'a':
+            switch (toupper(c)) {
                 case 'A': current_byte = (current_byte << 2) | 0b00; break;
-                case 'c':
                 case 'C': current_byte = (current_byte << 2) | 0b01; break;
-                case 'g':
                 case 'G': current_byte = (current_byte << 2) | 0b10; break;
-                case 't':
                 case 'T': current_byte = (current_byte << 2) | 0b11; break;
                 default:
                     ereport(ERROR, (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
@@ -122,7 +118,9 @@ void init_kmer_generator_state(KmerGeneratorState *state, DNA *dna, FuncCallCont
 PG_FUNCTION_INFO_V1(dna_in);
 Datum dna_in(PG_FUNCTION_ARGS) {
     char* str = PG_GETARG_CSTRING(0);
-    PG_RETURN_BYTEA_P(dna_parse(str));
+    DNA* result = dna_parse(str);
+    PG_FREE_IF_COPY(str, 0);
+    PG_RETURN_BYTEA_P(result);
 }
 
 PG_FUNCTION_INFO_V1(dna_out);
