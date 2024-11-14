@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
 
 typedef struct Kmer {
@@ -162,6 +163,21 @@ void dna_generate_kmers() {
 
 }
 
+bool check_pairs(uint64_t num, int k) {
+
+    // XOR pairs of bits - this trick will set the bits to 01 if the pair is 10 or 01
+    uint64_t xor_pairs = (num ^ (num >> 1)) & 0x5555555555555555ULL;
+    printf("After XOR: ");
+    print_binary(&xor_pairs);
+
+    // Create a mask with 01010101...01 (k times)
+    uint64_t pairs_of_01 = 0x5555555555555555ULL >> (64 - 2*k);
+    printf("Pairs of 01 of lenght k: ");
+    print_binary(&pairs_of_01);
+
+    return xor_pairs == pairs_of_01;
+}
+
 int main() {
     // uint8_t length = 4;
     // char* kmer_str = generate_kmer(length);
@@ -182,6 +198,13 @@ int main() {
     //printf("Mask for 2 bits: %02X\n", create_last_byte_mask(1));  // 11000000 -> C0
     //printf("Mask for 8 bits: %02X\n", create_last_byte_mask(4));  // 11111111 -> FF
     //printf("Mask for 8 bits: %02X\n", create_last_byte_mask(2));  // 11111111 -> FF
+    uint64_t num = 0ULL;
+    num |= 0b0001100101010101011010101010100101010101101010101010101010101010;
+    printf("initial number: ");
+    print_binary(&num);
+    // true = 1, false = 0
+    bool result = check_pairs(num, 32);
+    printf("Result: %s\n", result ? "true" : "false");
 
     return 0;
 }
