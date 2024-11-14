@@ -10,9 +10,13 @@ static Kmer* make_kmer(const char *str, uint8_t length) {
 	for (uint8_t i = 0; i < length; i++) {
 		char c = str[i];
 		switch (c) {
+			case 'a':
 			case 'A': kmer -> value = (kmer -> value << 2) | 0b00; break;
+			case 'c':
 			case 'C': kmer -> value = (kmer -> value << 2) | 0b01; break;
+			case 'g':
 			case 'G': kmer -> value = (kmer -> value << 2) | 0b10; break;
+			case 't':
 			case 'T': kmer -> value = (kmer -> value << 2) | 0b11; break;
 			default:
 				ereport(ERROR, (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),

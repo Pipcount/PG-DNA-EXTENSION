@@ -24,9 +24,13 @@ static DNA* make_dna(const char* str, uint32_t length) {
                 continue;
             }
             switch (c) {
+                case 'a':
                 case 'A': current_byte = (current_byte << 2) | 0b00; break;
+                case 'c':
                 case 'C': current_byte = (current_byte << 2) | 0b01; break;
+                case 'g':
                 case 'G': current_byte = (current_byte << 2) | 0b10; break;
+                case 't':
                 case 'T': current_byte = (current_byte << 2) | 0b11; break;
                 default:
                     ereport(ERROR, (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),

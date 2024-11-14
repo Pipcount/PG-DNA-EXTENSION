@@ -10,7 +10,7 @@ INSERT INTO kmers VALUES
 (1, 'ACGTT'),
 (2, 'ACTGTTTTTTT'),
 (3, 'A'),
-(4, 'ATCTACTCATCATACTGATCGATTAGCTGATG');
+(4, 'ATCTACTCATCATACTGATCGATTAGat');
 
 SELECT * FROM kmers;
 select length(kmer), kmer from kmers;
