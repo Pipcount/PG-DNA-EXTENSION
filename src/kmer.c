@@ -2,6 +2,13 @@
 
 PG_MODULE_MAGIC;
 
+/**
+ * @brief Creates a K-mer from a string.
+ * 
+ * @param str The string representing the K-mer.
+ * @param length The length of the K-mer.
+ * @return A pointer to the created K-mer.
+*/
 static Kmer* make_kmer(const char *str, uint8_t length) {
 	Kmer* kmer = palloc0(sizeof(Kmer));
 	kmer -> k = length;
@@ -10,7 +17,7 @@ static Kmer* make_kmer(const char *str, uint8_t length) {
 	for (uint8_t i = 0; i < length; i++) {
 		char c = str[i];
 		switch (toupper(c)) {
-			case 'A': kmer -> value = (kmer -> value << 2) | 0b00; break;
+			case 'A': kmer -> value = (kmer -> value << 2) | 0b00; break; // TODO: Use LUT for this
 			case 'C': kmer -> value = (kmer -> value << 2) | 0b01; break;
 			case 'G': kmer -> value = (kmer -> value << 2) | 0b10; break;
 			case 'T': kmer -> value = (kmer -> value << 2) | 0b11; break;
@@ -24,6 +31,12 @@ static Kmer* make_kmer(const char *str, uint8_t length) {
 	return kmer;
 }
 
+/**
+ * @brief Parses a K-mer from a string.
+ * 
+ * @param str The string representing the K-mer to parse.
+ * @return A pointer to the K-mer created from the string.
+ */
 static Kmer* kmer_parse(const char* str) {
 	uint8_t length = strlen(str);
 	//! elog(INFO, "kmer length (kmer_parse): %d", length);
@@ -37,6 +50,12 @@ static Kmer* kmer_parse(const char* str) {
 	return make_kmer(str, length);
 }
 
+/**
+ * @brief Converts a K-mer to a string.
+ * 
+ * @param kmer The K-mer to convert.
+ * @return The string representation of the K-mer.
+ */
 static char* kmer_value_to_string(Kmer* kmer) {
 	char str[32];
 	//! elog(INFO, "kmer value (kmer_value_to_string): %lu", kmer -> value);
@@ -44,7 +63,7 @@ static char* kmer_value_to_string(Kmer* kmer) {
         uint8_t shift = (kmer -> k - i - 1) * 2;
         uint8_t nucleotide = (kmer -> value >> shift) & 0b11;
 
-        if (nucleotide == 0b00) {
+        if (nucleotide == 0b00) {       // TODO: Use LUT for this
             str[i] = 'A';
         } else if (nucleotide == 0b01) {
             str[i] = 'C';
@@ -57,7 +76,13 @@ static char* kmer_value_to_string(Kmer* kmer) {
 	str[kmer->k] = '\0';
 	return psprintf("%s", str);
 }
-
+/**
+ * @brief Checks if a K-mer starts with a prefix.
+ * 
+ * @param kmer The K-mer to check.
+ * @param prefix The prefix to check.
+ * @return True if the K-mer starts with the prefix, false otherwise.
+ */
 static bool internal_kmer_startswith(Kmer* kmer, Kmer* prefix) {
 	if (kmer -> k < prefix -> k) {
 		ereport(ERROR, (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
@@ -69,6 +94,12 @@ static bool internal_kmer_startswith(Kmer* kmer, Kmer* prefix) {
 }
 /* ************************************************************************** */
 
+/**
+ * @brief Postgres input function for K-mer.
+ * 
+ * @param str The input string.
+ * @return The K-mer object created from the input string.
+ */
 PG_FUNCTION_INFO_V1(kmer_in);
 Datum kmer_in(PG_FUNCTION_ARGS) {
 	char *str = PG_GETARG_CSTRING(0);
@@ -77,6 +108,12 @@ Datum kmer_in(PG_FUNCTION_ARGS) {
 	PG_RETURN_KMER_P(kmer);
 }
 
+/**
+ * @brief Postgres output function for K-mer.
+ * 
+ * @param kmer The K-mer object.
+ * @return The string representation of the K-mer.
+ */
 PG_FUNCTION_INFO_V1(kmer_out);
 Datum kmer_out(PG_FUNCTION_ARGS) {
 	Kmer *kmer = PG_GETARG_KMER_P(0);
@@ -87,6 +124,12 @@ Datum kmer_out(PG_FUNCTION_ARGS) {
 	PG_RETURN_CSTRING(str);
 }
 
+/**
+ * @brief Postgres receive function for K-mer.
+ * 
+ * @param buf The bytea representation of the K-mer.
+ * @return The K-mer object created from the bytea.
+ */
 PG_FUNCTION_INFO_V1(kmer_recv);
 Datum kmer_recv(PG_FUNCTION_ARGS) {
 	//! elog(INFO, "kmer_recv");
@@ -97,6 +140,12 @@ Datum kmer_recv(PG_FUNCTION_ARGS) {
 	PG_RETURN_KMER_P(kmer);
 }
 
+/**
+ * @brief Postgres send function for K-mer.
+ * 
+ * @param kmer The K-mer object.
+ * @return The bytea representation of the K-mer.
+ */
 PG_FUNCTION_INFO_V1(kmer_send);
 Datum kmer_send(PG_FUNCTION_ARGS) {
 	//! elog(INFO, "kmer_send");
@@ -109,6 +158,12 @@ Datum kmer_send(PG_FUNCTION_ARGS) {
 	PG_RETURN_BYTEA_P(pq_endtypsend(&buf));
 }
 
+/**
+ * @brief Postgres cast function from text to K-mer.
+ * 
+ * @param txt The text to cast.
+ * @return The K-mer object created from the text.
+ */
 PG_FUNCTION_INFO_V1(kmer_cast_from_text);
 Datum
 kmer_cast_from_text(PG_FUNCTION_ARGS)
@@ -119,6 +174,12 @@ kmer_cast_from_text(PG_FUNCTION_ARGS)
   PG_RETURN_KMER_P(kmer_parse(str));
 }
 
+/**
+ * @brief Postgres cast function from K-mer to text.
+ * 
+ * @param kmer The K-mer to cast.
+ * @return The text representation of the K-mer.
+ */
 PG_FUNCTION_INFO_V1(kmer_cast_to_text);
 Datum
 kmer_cast_to_text(PG_FUNCTION_ARGS)
@@ -130,6 +191,12 @@ kmer_cast_to_text(PG_FUNCTION_ARGS)
   PG_RETURN_TEXT_P(out);
 }
 
+/**
+ * @brief Postgres length function for K-mer.
+ * 
+ * @param kmer The K-mer to get the length of.
+ * @return The length of the K-mer.
+ */
 PG_FUNCTION_INFO_V1(kmer_length);
 Datum
 kmer_length(PG_FUNCTION_ARGS)
@@ -140,6 +207,13 @@ kmer_length(PG_FUNCTION_ARGS)
   PG_RETURN_CHAR(length);
 }
 
+/**
+ * @brief Postgres function to check if two K-mers are equal.
+ * 
+ * @param a The first K-mer.
+ * @param b The second K-mer.
+ * @return True if the K-mers are equal, false otherwise.
+ */
 PG_FUNCTION_INFO_V1(kmer_eq);
 Datum kmer_eq(PG_FUNCTION_ARGS) {
 	Kmer* a = PG_GETARG_KMER_P(0);
@@ -150,6 +224,13 @@ Datum kmer_eq(PG_FUNCTION_ARGS) {
 	PG_RETURN_BOOL(result);
 }
 
+/**
+ * @brief Postgres function to check if a K-mer starts with a prefix.
+ * 
+ * @param kmer The K-mer to check.
+ * @param prefix The prefix to check.
+ * @return True if the K-mer starts with the prefix, false otherwise.
+ */
 PG_FUNCTION_INFO_V1(kmer_startswith);
 Datum kmer_startswith(PG_FUNCTION_ARGS) {
 	Kmer *kmer = PG_GETARG_KMER_P(0);
