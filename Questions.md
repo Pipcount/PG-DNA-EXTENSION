@@ -5,3 +5,5 @@
   - #### A: Only querying, but still need to create a type
 
 - ### Q: The cast for the DNA datatype seems to be implicit, do we need to add the cast explicitly ? 
+
+- ### Q: Error management, do we need to return null or doing it like we did id okay ? (We did it the same way as in complex)
