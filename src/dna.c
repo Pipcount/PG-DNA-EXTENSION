@@ -239,6 +239,38 @@ Datum dna_send(PG_FUNCTION_ARGS) {
 }
 
 /**
+ * @brief Postgres cast function from text to DNA.
+ * 
+ * @param txt The text to cast.
+ * @return The DNA object created from the text.
+ */
+PG_FUNCTION_INFO_V1(DNA_cast_from_text);
+Datum DNA_cast_from_text(PG_FUNCTION_ARGS) {
+    text *txt = PG_GETARG_TEXT_P(0);
+    char *str = DatumGetCString(DirectFunctionCall1(textout,
+               PointerGetDatum(txt)));
+    DNA* dna = dna_parse(str);
+    PG_FREE_IF_COPY(txt, 0);
+    PG_RETURN_BYTEA_P(dna);
+}
+
+/**
+ * @brief Postgres cast function from DNA to text.
+ * 
+ * @param dna The DNA object to cast.
+ * @return The text representation of the DNA sequence.
+ */
+PG_FUNCTION_INFO_V1(DNA_cast_to_text);
+Datum DNA_cast_to_text(PG_FUNCTION_ARGS) {
+    DNA* dna = PG_GETARG_BYTEA_P(0);
+    text* out = (text *)DirectFunctionCall1(textin,
+              PointerGetDatum(dna_to_string(dna)));
+    PG_FREE_IF_COPY(dna, 0);
+    PG_RETURN_TEXT_P(out);
+}
+
+
+/**
  * @brief Postgres function to get the length of a DNA sequence.
  * 
  * @param dna The DNA object.

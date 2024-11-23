@@ -165,13 +165,13 @@ Datum kmer_send(PG_FUNCTION_ARGS) {
  * @return The K-mer object created from the text.
  */
 PG_FUNCTION_INFO_V1(kmer_cast_from_text);
-Datum
-kmer_cast_from_text(PG_FUNCTION_ARGS)
-{
-  text *txt = PG_GETARG_TEXT_P(0);
-  char *str = DatumGetCString(DirectFunctionCall1(textout,
-               PointerGetDatum(txt)));
-  PG_RETURN_KMER_P(kmer_parse(str));
+Datum kmer_cast_from_text(PG_FUNCTION_ARGS) {
+	text *txt = PG_GETARG_TEXT_P(0);
+	char *str = DatumGetCString(DirectFunctionCall1(textout,
+	             PointerGetDatum(txt)));
+	Kmer* kmer = kmer_parse(str);
+	PG_FREE_IF_COPY(txt, 0);
+	PG_RETURN_KMER_P(kmer);
 }
 
 /**
@@ -181,14 +181,12 @@ kmer_cast_from_text(PG_FUNCTION_ARGS)
  * @return The text representation of the K-mer.
  */
 PG_FUNCTION_INFO_V1(kmer_cast_to_text);
-Datum
-kmer_cast_to_text(PG_FUNCTION_ARGS)
-{
-  Kmer* kmer  = PG_GETARG_KMER_P(0);
-  text* out = (text *)DirectFunctionCall1(textin,
-            PointerGetDatum(kmer_value_to_string(kmer)));
-  PG_FREE_IF_COPY(kmer, 0);
-  PG_RETURN_TEXT_P(out);
+Datum kmer_cast_to_text(PG_FUNCTION_ARGS) {
+	Kmer* kmer  = PG_GETARG_KMER_P(0);
+	text* out = (text *)DirectFunctionCall1(textin, 
+						PointerGetDatum(kmer_value_to_string(kmer)));
+	PG_FREE_IF_COPY(kmer, 0);
+	PG_RETURN_TEXT_P(out);
 }
 
 /**
@@ -198,13 +196,11 @@ kmer_cast_to_text(PG_FUNCTION_ARGS)
  * @return The length of the K-mer.
  */
 PG_FUNCTION_INFO_V1(kmer_length);
-Datum
-kmer_length(PG_FUNCTION_ARGS)
-{
-  Kmer* kmer  = PG_GETARG_KMER_P(0);
-  uint8_t length = kmer -> k;
-  PG_FREE_IF_COPY(kmer, 0);
-  PG_RETURN_CHAR(length);
+Datum kmer_length(PG_FUNCTION_ARGS) {
+	Kmer* kmer  = PG_GETARG_KMER_P(0);
+	uint8_t length = kmer -> k;
+	PG_FREE_IF_COPY(kmer, 0);
+	PG_RETURN_CHAR(length);
 }
 
 /**
