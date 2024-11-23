@@ -101,7 +101,8 @@ CREATE TYPE DNA (
     INPUT = dna_in,
     OUTPUT = dna_out,
     RECEIVE = dna_recv,
-    SEND = dna_send
+    SEND = dna_send,
+	INTERNALLENGTH = VARIABLE
 );
 
 

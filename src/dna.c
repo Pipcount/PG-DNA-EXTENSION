@@ -22,8 +22,7 @@ typedef struct KmerGeneratorState {
  * @param length The amount of nucleotides of the DNA sequence.
  */
 static void store_last_byte_length(DNA* dna, uint32_t length) {
-    uint8_t* data_ptr = (uint8_t*) VARDATA(dna); 
-    *data_ptr = length % 4 == 0 ? 0b00000100 : length % 4;
+    dna->last_byte_length = length % 4 == 0 ? 0b00000100 : length % 4;
 }
 
 /**
@@ -34,13 +33,13 @@ static void store_last_byte_length(DNA* dna, uint32_t length) {
  * @return A pointer to the created DNA object.
  */
 static DNA* make_dna(const char* str, uint32_t length) {
-    DNA* dna = palloc0(VARHDRSZ + ceil((double) length / 4) + 1);     // + 1 for last byte length
-    SET_VARSIZE(dna, VARHDRSZ + ceil((double) length / 4) + 1);
-    uint8_t* data_ptr = (uint8_t*) VARDATA(dna);
+    DNA* dna = palloc0(VARHDRSZ + ceil((double) length / 4) + sizeof(uint8_t));     // + 1 for last byte length
+    bytea* sequence = &dna->sequence;
+    SET_VARSIZE(sequence, VARHDRSZ + ceil((double) length / 4));
+    uint8_t* data_ptr = (uint8_t*) VARDATA(sequence);
 
     store_last_byte_length(dna, length);
-    data_ptr++;                                                       // skip first byte for last byte length
-
+    
     for (uint32_t i = 0; i < length; i += 4) {
         uint8_t current_byte = 0b00000000;                            // initialize byte with 0
 
@@ -61,6 +60,7 @@ static DNA* make_dna(const char* str, uint32_t length) {
             }
         }
         *data_ptr = current_byte;
+        elog(INFO, "make_dna, current_byte: %x", current_byte);
         data_ptr++;
     }
     return dna; 
@@ -78,6 +78,7 @@ static DNA* dna_parse(const char* str) {
 		ereport(ERROR, (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
 	  	errmsg("kmer should not be empty")));
 	}
+    elog(INFO, "dna_parse: %u", length); 
     return make_dna(str, length);
 }
 
@@ -89,10 +90,11 @@ static DNA* dna_parse(const char* str) {
  */
 static char* dna_to_string(DNA* dna) {
     // length represents the max amount of nucleotides in the DNA sequence, but the last byte might not be full
-    uint32_t length = (VARSIZE(dna) - VARHDRSZ - 1) * 4;                               // - 1 for last byte length
+    bytea* sequence = &dna->sequence;
+    uint32_t length = (VARSIZE(sequence) - VARHDRSZ) * 4;
 
-    uint8_t* data_ptr = (uint8_t*) VARDATA(dna);
-    uint8_t last_byte_length = *data_ptr++;
+    uint8_t* data_ptr = (uint8_t*) VARDATA(sequence);
+    uint8_t last_byte_length = dna->last_byte_length;
     char* str = palloc0(length + 1 - (4 - last_byte_length));
 
     for (uint32_t i = 0; i < length; i += 4) {
@@ -125,9 +127,9 @@ static char* dna_to_string(DNA* dna) {
  * @return The length of the DNA sequence.
  */
 static uint32_t get_dna_sequence_length(DNA* dna) {
-    uint32_t length_in_bytes = (VARSIZE(dna) - VARHDRSZ - 1) * 4;
-    uint8_t* data_ptr = (uint8_t*) VARDATA(dna);
-    uint8_t last_byte_length = *data_ptr;
+    bytea* sequence = &dna->sequence;
+    uint32_t length_in_bytes = (VARSIZE(sequence) - VARHDRSZ) * 4;
+    uint8_t last_byte_length = dna->last_byte_length;
     return length_in_bytes - (4 - last_byte_length);
 }
 
@@ -169,9 +171,9 @@ static void init_kmer_generator_state(KmerGeneratorState *state, DNA *dna, FuncC
         errmsg("You cannot generate a kmer that is longer than 32 nucleotides.");
     }
     state->length = get_dna_sequence_length(dna);
-    state->byte_ptr = (uint8_t *)VARDATA(dna);
+    bytea* sequence = &dna->sequence;
+    state->byte_ptr = (uint8_t *)VARDATA(sequence);
     state->nucleotide_ctr = 0;
-    state->byte_ptr++; // skip first byte for last byte length
 
     funcctx->max_calls = state->length - state->kmer_length + 1; // number of kmers to generate
 }
@@ -186,9 +188,14 @@ static void init_kmer_generator_state(KmerGeneratorState *state, DNA *dna, FuncC
 PG_FUNCTION_INFO_V1(dna_in);
 Datum dna_in(PG_FUNCTION_ARGS) {
     char* str = PG_GETARG_CSTRING(0);
+    elog(INFO, "dna_in: %s", str);
     DNA* result = dna_parse(str);
+    elog(INFO, "dna_in3: %x", result);
     PG_FREE_IF_COPY(str, 0);
-    PG_RETURN_BYTEA_P(result);
+    elog(INFO, "hello");
+    elog(INFO, "hello %u", result->last_byte_length);
+    elog(INFO, "size of result: %u", sizeof(result));
+    PG_RETURN_DNA_P(result);
 }
 
 /**
@@ -199,7 +206,8 @@ Datum dna_in(PG_FUNCTION_ARGS) {
  */
 PG_FUNCTION_INFO_V1(dna_out);
 Datum dna_out(PG_FUNCTION_ARGS) {
-    DNA* dna = PG_GETARG_BYTEA_P(0);
+    elog(INFO, "dna_out");
+    DNA* dna = PG_GETARG_DNA_P(0);
     //! elog(INFO, "dna_out: %x", dna);
     char* str = dna_to_string(dna);
     PG_FREE_IF_COPY(dna, 0);
@@ -214,12 +222,14 @@ Datum dna_out(PG_FUNCTION_ARGS) {
  */
 PG_FUNCTION_INFO_V1(dna_recv);
 Datum dna_recv(PG_FUNCTION_ARGS) {
+    elog(INFO, "dna_recv");
     StringInfo buf = (StringInfo) PG_GETARG_POINTER(0);
     int32 len = pq_getmsgint(buf, 4);
-    bytea* result = (bytea*) palloc(len + VARHDRSZ);
-    SET_VARSIZE(result, len + VARHDRSZ);
-    memcpy(VARDATA(result), pq_getmsgbytes(buf, len), len);
-    PG_RETURN_BYTEA_P(result);
+    DNA* dna = palloc(len + VARHDRSZ);
+    dna->last_byte_length = pq_getmsgint(buf, 8);
+    memcpy(&dna->sequence, pq_getmsgbytes(buf, len - 8), len - 8);
+    SET_VARSIZE(&dna->sequence, len + VARHDRSZ);
+    PG_RETURN_DNA_P(dna);
 }
 
 /**
@@ -230,12 +240,15 @@ Datum dna_recv(PG_FUNCTION_ARGS) {
  */
 PG_FUNCTION_INFO_V1(dna_send);
 Datum dna_send(PG_FUNCTION_ARGS) {
-    bytea* dna = PG_GETARG_BYTEA_P(0);
+    elog(INFO, "dna_send");
+    DNA* dna = PG_GETARG_DNA_P(0);
     StringInfoData buf;
     pq_begintypsend(&buf);
-    pq_sendbytes(&buf, VARDATA(dna), VARSIZE_ANY_EXHDR(dna));
+    bytea* sequence = &dna->sequence;
+    pq_sendint8(&buf, dna->last_byte_length);
+    pq_sendbytes(&buf, VARDATA(sequence), VARSIZE_ANY_EXHDR(sequence));
     PG_FREE_IF_COPY(dna, 0);
-    PG_RETURN_BYTEA_P(pq_endtypsend(&buf));
+    PG_RETURN_DNA_P(pq_endtypsend(&buf));
 }
 
 /**
@@ -246,7 +259,7 @@ Datum dna_send(PG_FUNCTION_ARGS) {
  */
 PG_FUNCTION_INFO_V1(dna_length);
 Datum dna_length(PG_FUNCTION_ARGS) {
-    DNA* dna = PG_GETARG_BYTEA_P(0);
+    DNA* dna = PG_GETARG_DNA_P(0);
     uint32_t length = get_dna_sequence_length(dna);
     PG_FREE_IF_COPY(dna, 0);
     PG_RETURN_UINT32(length);
@@ -272,7 +285,7 @@ Datum dna_generate_kmers(PG_FUNCTION_ARGS) {
         funcctx->user_fctx = palloc0(sizeof(KmerGeneratorState));
         KmerGeneratorState *state = (KmerGeneratorState *) funcctx->user_fctx;
 
-        DNA* dna = PG_GETARG_BYTEA_P(0);
+        DNA* dna = PG_GETARG_DNA_P(0);
         state->kmer_length = (uint8_t) PG_GETARG_UINT16(1);
         init_kmer_generator_state(state, dna, funcctx);
 
