@@ -39,4 +39,7 @@ WHERE k.kmer ^@ 'ACGT';
 
 INSERT INTO qkmers VALUES 
 (1, 'ACM'),
-(2, 'GTNW');
+(2, 'GTNW'),
+(3, 'ANMAAAAAAAAAA');
+
+select * from qkmers;

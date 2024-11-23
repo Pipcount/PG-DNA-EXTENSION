@@ -44,6 +44,44 @@ static Qkmer* make_qkmer_from_str(const char* str, uint8_t length) {
 }
 
 /**
+ * @brief Converts a Q-kmer to a string.
+ * 
+ * @param qkmer The Q-kmer to convert.
+ * @return The string representation of the Q-kmer.
+ */
+static char* qkmer_value_to_string(Qkmer* qkmer) {
+    char str[32];
+    for (uint8_t i = 0; i < qkmer -> k; i++) {
+        uint8_t shift = (qkmer -> k - i - 1) * 2;
+        uint8_t ac_nucleotide = (qkmer -> ac >> shift) & 0b11;
+        uint8_t gt_nucleotide = (qkmer -> gt >> shift) & 0b11;
+
+        uint8_t nucleotide = (ac_nucleotide << 2) | gt_nucleotide;
+        switch (nucleotide) {
+            case 0b1000: str[i] = 'A'; break;        // TODO: Use LUT for this
+            case 0b0100: str[i] = 'C'; break;
+            case 0b0010: str[i] = 'G'; break;
+            case 0b0001: str[i] = 'T'; break;
+            case 0b1001: str[i] = 'W'; break;
+            case 0b0110: str[i] = 'S'; break;
+            case 0b1100: str[i] = 'M'; break;
+            case 0b0011: str[i] = 'K'; break;
+            case 0b1010: str[i] = 'R'; break;
+            case 0b0101: str[i] = 'Y'; break;
+            case 0b0111: str[i] = 'B'; break;
+            case 0b1011: str[i] = 'D'; break;
+            case 0b1101: str[i] = 'H'; break;
+            case 0b1110: str[i] = 'V'; break;
+            case 0b1111: str[i] = 'N'; break;
+            default:
+                ereport(ERROR, (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+                                errmsg("invalid binary value")));
+        }
+    }
+    str[qkmer -> k] = '\0';
+    return psprintf("%s", str);
+}
+/**
  * @brief Creates a Q-kmer from a K-mer.
  * 
  * @param kmer The K-mer to create the Q-kmer from.
@@ -52,6 +90,7 @@ static Qkmer* make_qkmer_from_str(const char* str, uint8_t length) {
 static Qkmer* make_qkmer_from_kmer(Kmer* kmer) {
     return NULL; // TODO
 }
+
 /**
  * @brief Parses a Q-kmer from a string.
  * 
@@ -93,7 +132,10 @@ Datum qkmer_in(PG_FUNCTION_ARGS) {
  */
 PG_FUNCTION_INFO_V1(qkmer_out);
 Datum qkmer_out(PG_FUNCTION_ARGS) {
-
+    Qkmer* qkmer = PG_GETARG_QKMER_P(0);
+    char* str = qkmer_value_to_string(qkmer);
+    PG_FREE_IF_COPY(qkmer, 0);
+    PG_RETURN_CSTRING(str);
 }
 
 /**

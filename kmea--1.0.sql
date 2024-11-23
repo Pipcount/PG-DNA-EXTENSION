@@ -157,5 +157,7 @@ CREATE TYPE qkmer (
 	INPUT = qkmer_in,
 	OUTPUT = qkmer_out,
 	RECEIVE = qkmer_recv,
-	SEND = qkmer_send
+	SEND = qkmer_send,
+	INTERNALLENGTH = 17
 );
+
