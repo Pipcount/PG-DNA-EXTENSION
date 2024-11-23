@@ -161,3 +161,31 @@ CREATE TYPE qkmer (
 	INTERNALLENGTH = 17
 );
 
+CREATE OR REPLACE FUNCTION qkmer(text)
+RETURNS qkmer
+AS '$libdir/qkmer', 'qkmer_cast_from_text'
+LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+CREATE OR REPLACE FUNCTION text(qkmer)
+RETURNS text
+AS '$libdir/qkmer', 'qkmer_cast_to_text'
+LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+CREATE CAST (text as qkmer) WITH FUNCTION qkmer(text) AS IMPLICIT;
+CREATE CAST (qkmer as text) WITH FUNCTION text(qkmer);
+
+CREATE OR REPLACE FUNCTION contains(qkmer, kmer)
+RETURNS boolean
+AS '$libdir/qkmer', 'qkmer_contains'
+LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+CREATE OPERATOR @> (
+	PROCEDURE = contains,
+	LEFTARG = qkmer,
+	RIGHTARG = kmer
+);
+
+CREATE OR REPLACE FUNCTION length(qkmer)
+RETURNS integer
+AS '$libdir/qkmer', 'qkmer_length'
+LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;

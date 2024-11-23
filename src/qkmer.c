@@ -81,6 +81,7 @@ static char* qkmer_value_to_string(Qkmer* qkmer) {
     str[qkmer -> k] = '\0';
     return psprintf("%s", str);
 }
+
 /**
  * @brief Creates a Q-kmer from a K-mer.
  * 
@@ -88,7 +89,37 @@ static char* qkmer_value_to_string(Qkmer* qkmer) {
  * @return A pointer to the created Q-kmer.
  */
 static Qkmer* make_qkmer_from_kmer(Kmer* kmer) {
-    return NULL; // TODO
+    Qkmer* qkmer = palloc0(sizeof(Qkmer));
+    qkmer -> k = kmer -> k;
+
+    for (uint8_t i = 0; i < kmer -> k; i++) {
+        uint8_t shift = (kmer -> k - i - 1) * 2;
+        uint8_t nucleotide = (kmer -> value >> shift) & 0b11;
+
+        switch (nucleotide) {       // TODO: Use LUT for this
+            case 0b00:
+            qkmer -> ac = (qkmer -> ac << 2) | 0b10;
+            qkmer -> gt = (qkmer -> gt << 2) | 0b00;
+            break;
+            case 0b01:
+            qkmer -> ac = (qkmer -> ac << 2) | 0b01;
+            qkmer -> gt = (qkmer -> gt << 2) | 0b00;
+            break;
+            case 0b10:
+            qkmer -> ac = (qkmer -> ac << 2) | 0b00;
+            qkmer -> gt = (qkmer -> gt << 2) | 0b10;
+            break;
+            case 0b11:
+            qkmer -> ac = (qkmer -> ac << 2) | 0b00;
+            qkmer -> gt = (qkmer -> gt << 2) | 0b01;
+            break;
+            default:
+            ereport(ERROR, (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+                    errmsg("invalid nucleotide for kmer")));
+            break;
+        }
+    }
+    return qkmer;
 }
 
 /**
@@ -158,4 +189,71 @@ Datum qkmer_send(PG_FUNCTION_ARGS) {
 PG_FUNCTION_INFO_V1(qkmer_recv);
 Datum qkmer_recv(PG_FUNCTION_ARGS) {
 
+}
+
+/**
+ * @brief Postgres cast function from text to Q-kmer.
+ * 
+ * @param txt The text to cast.
+ * @return The Q-kmer object created from the text.
+ */
+PG_FUNCTION_INFO_V1(qkmer_cast_from_text);
+Datum qkmer_cast_from_text(PG_FUNCTION_ARGS) {
+    text* txt = PG_GETARG_TEXT_P(0);
+    char* str = DatumGetCString(DirectFunctionCall1(textout, PointerGetDatum(txt)));
+    Qkmer* qkmer = qkmer_parse(str);
+    PG_FREE_IF_COPY(txt, 0);
+    PG_RETURN_QKMER_P(qkmer);
+}
+
+/**
+ * @brief Postgres cast function from Q-kmer to text.
+ * 
+ * @param qkmer The Q-kmer to cast.
+ * @return The text representation of the Q-kmer.
+ */
+PG_FUNCTION_INFO_V1(qkmer_cast_to_text);
+Datum qkmer_cast_to_text(PG_FUNCTION_ARGS) {
+    Qkmer* qkmer = PG_GETARG_QKMER_P(0);
+    text* out = (text *)DirectFunctionCall1(textin, PointerGetDatum(qkmer_value_to_string(qkmer)));
+    PG_FREE_IF_COPY(qkmer, 0);
+    PG_RETURN_TEXT_P(out);
+}
+
+/**
+ * @brief Checks if a Q-kmer matches a kmer
+ * 
+ * @param qkmer The Q-kmer to check.
+ * @param kmer The K-mer to check.
+ * @return True if the Q-kmer matches the K-mer, false otherwise.
+ */
+PG_FUNCTION_INFO_V1(qkmer_contains);
+Datum qkmer_contains(PG_FUNCTION_ARGS) {
+    Qkmer* qkmer = PG_GETARG_QKMER_P(0);
+    Kmer* kmer = PG_GETARG_KMER_P(1);
+    
+    if (qkmer -> k != kmer -> k) {
+        PG_RETURN_BOOL(false);
+    }
+
+    Qkmer* qkmer_from_kmer = make_qkmer_from_kmer(kmer);
+    bool result = (qkmer_from_kmer -> ac & qkmer -> ac) == qkmer_from_kmer -> ac &&
+                  (qkmer_from_kmer -> gt & qkmer -> gt) == qkmer_from_kmer -> gt;
+    PG_FREE_IF_COPY(qkmer, 0);
+    PG_FREE_IF_COPY(kmer, 1);
+    PG_RETURN_BOOL(result);
+}
+
+/**
+ * @brief Returns the length of a Q-kmer.
+ * 
+ * @param qkmer The Q-kmer to get the length of.
+ * @return The length of the Q-kmer.
+ */
+PG_FUNCTION_INFO_V1(qkmer_length);
+Datum qkmer_length(PG_FUNCTION_ARGS) {
+    Qkmer* qkmer = PG_GETARG_QKMER_P(0);
+    uint8_t length = qkmer -> k;
+    PG_FREE_IF_COPY(qkmer, 0);
+    PG_RETURN_CHAR(length);
 }

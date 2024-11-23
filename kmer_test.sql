@@ -12,7 +12,9 @@ INSERT INTO kmers VALUES
 (1, 'ACGTT'),
 (2, 'ACTGTTTTTTT'),
 (3, 'A'),
-(4, 'ATCTACTCATCATACTGATCGATTAGat');
+(4, 'ATCTACTCATCATACTGATCGATTAGat'),
+(5, 'ACGAC'),
+(6, 'ACGGG');
 
 SELECT * FROM kmers;
 select length(kmer), kmer from kmers;
@@ -43,3 +45,10 @@ INSERT INTO qkmers VALUES
 (3, 'ANMAAAAAAAAAA');
 
 select * from qkmers;
+
+select kmer as "Matches ACGNW"
+from kmers
+where 'ACGNW' @> kmer;
+
+select length(qkmer), qkmer
+from qkmers;
