@@ -67,8 +67,6 @@ static char* kmer_value_to_string(Kmer* kmer) {
  */
 static bool internal_kmer_startswith(Kmer* kmer, Kmer* prefix) {
 	if (kmer -> k < prefix -> k) {
-		ereport(ERROR, (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-	  	errmsg("kmer should not be shorter than prefix")));
 		return false;
 	}
 	uint64_t extracted_from_kmer = kmer -> value >> (kmer -> k - prefix -> k) * 2;
