@@ -52,3 +52,21 @@ where 'ACGNW' @> kmer;
 
 select length(qkmer), qkmer
 from qkmers;
+
+
+/* Test the kmer_count function */
+select count(*)
+from DNAs;
+
+select k.kmer, count(*)
+from generate_kmers('ACTGACTG', 4) as k(kmer)
+group by k.kmer
+order by count(*) desc;
+
+with mykmers as (
+    select k.kmer, count(*)
+    from generate_kmers('ACTGACTG', 4) as k(kmer)
+    group by k.kmer
+)
+select sum(count) as "Total kmers", count(*) as "Distinct kmers", count(*) filter (where count = 1) as "Unique kmers"
+from mykmers;

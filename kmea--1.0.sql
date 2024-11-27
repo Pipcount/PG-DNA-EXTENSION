@@ -189,3 +189,56 @@ CREATE OR REPLACE FUNCTION length(qkmer)
 RETURNS integer
 AS '$libdir/qkmer', 'qkmer_length'
 LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+
+-- ----------------- --
+-- Kmer BTree index  --
+-- ----------------- --
+
+
+-- CREATE OR REPLACE FUNCTION kmer_eq(kmer, kmer) 
+-- RETURNS boolean
+-- AS '$libdir/kmer', 'kmer_eq'
+-- LANGUAGE C IMMUTABLE;
+
+-- CREATE OR REPLACE FUNCTION kmer_ne(kmer, kmer) 
+-- RETURNS boolean
+-- AS '$libdir/kmer', 'kmer_ne'
+-- LANGUAGE C IMMUTABLE;
+
+-- CREATE OR REPLACE FUNCTION kmer_lt(kmer, kmer) 
+-- RETURNS boolean
+-- AS '$libdir/kmer', 'kmer_lt'
+-- LANGUAGE C IMMUTABLE;
+
+-- CREATE OR REPLACE FUNCTION kmer_le(kmer, kmer) 
+-- RETURNS boolean
+-- AS '$libdir/kmer', 'kmer_le'
+-- LANGUAGE C IMMUTABLE;
+
+-- CREATE OR REPLACE FUNCTION kmer_gt(kmer, kmer) 
+-- RETURNS boolean
+-- AS '$libdir/kmer', 'kmer_gt'
+-- LANGUAGE C IMMUTABLE;
+
+-- CREATE OR REPLACE FUNCTION kmer_ge(kmer, kmer) 
+-- RETURNS boolean
+-- AS '$libdir/kmer', 'kmer_ge'
+-- LANGUAGE C IMMUTABLE;
+
+-- CREATE OR REPLACE FUNCTION kmer_cmp(kmer, kmer)
+-- RETURNS integer
+-- AS '$libdir/kmer', 'kmer_cmp'
+-- LANGUAGE C IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION kmer_hash(kmer)
+RETURNS integer
+AS '$libdir/kmer', 'kmer_hash'
+LANGUAGE C IMMUTABLE;
+
+
+CREATE OPERATOR CLASS hash_kmer_ops
+DEFAULT FOR TYPE kmer USING hash
+AS
+        OPERATOR        1       =  ,
+		FUNCTION 	  	1       kmer_hash(kmer);

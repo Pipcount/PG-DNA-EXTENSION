@@ -237,3 +237,17 @@ Datum kmer_startswith(PG_FUNCTION_ARGS) {
 	PG_RETURN_BOOL(result);
 }
 
+
+/* Kmer Hash operators */
+
+/**
+ * @brief Postgres function to get the hash value of a K-mer.
+ * 
+ * @param kmer The K-mer to get the hash value of.
+ * @return The hash value of the K-mer.
+ */
+PG_FUNCTION_INFO_V1(kmer_hash);
+Datum kmer_hash(PG_FUNCTION_ARGS) {
+	Kmer* kmer = PG_GETARG_KMER_P(0);
+	PG_RETURN_INT32(hash_any((unsigned char *) &kmer -> value, sizeof(kmer -> value)));
+}
