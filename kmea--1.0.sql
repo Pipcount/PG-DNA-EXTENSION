@@ -191,45 +191,9 @@ AS '$libdir/qkmer', 'qkmer_length'
 LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
 
--- ----------------- --
--- Kmer BTree index  --
--- ----------------- --
-
-
--- CREATE OR REPLACE FUNCTION kmer_eq(kmer, kmer) 
--- RETURNS boolean
--- AS '$libdir/kmer', 'kmer_eq'
--- LANGUAGE C IMMUTABLE;
-
--- CREATE OR REPLACE FUNCTION kmer_ne(kmer, kmer) 
--- RETURNS boolean
--- AS '$libdir/kmer', 'kmer_ne'
--- LANGUAGE C IMMUTABLE;
-
--- CREATE OR REPLACE FUNCTION kmer_lt(kmer, kmer) 
--- RETURNS boolean
--- AS '$libdir/kmer', 'kmer_lt'
--- LANGUAGE C IMMUTABLE;
-
--- CREATE OR REPLACE FUNCTION kmer_le(kmer, kmer) 
--- RETURNS boolean
--- AS '$libdir/kmer', 'kmer_le'
--- LANGUAGE C IMMUTABLE;
-
--- CREATE OR REPLACE FUNCTION kmer_gt(kmer, kmer) 
--- RETURNS boolean
--- AS '$libdir/kmer', 'kmer_gt'
--- LANGUAGE C IMMUTABLE;
-
--- CREATE OR REPLACE FUNCTION kmer_ge(kmer, kmer) 
--- RETURNS boolean
--- AS '$libdir/kmer', 'kmer_ge'
--- LANGUAGE C IMMUTABLE;
-
--- CREATE OR REPLACE FUNCTION kmer_cmp(kmer, kmer)
--- RETURNS integer
--- AS '$libdir/kmer', 'kmer_cmp'
--- LANGUAGE C IMMUTABLE;
+-- ---------------- --
+-- Kmer Hash index  --
+-- ---------------- --
 
 CREATE OR REPLACE FUNCTION kmer_hash(kmer)
 RETURNS integer
@@ -242,3 +206,54 @@ DEFAULT FOR TYPE kmer USING hash
 AS
         OPERATOR        1       =  ,
 		FUNCTION 	  	1       kmer_hash(kmer);
+
+
+-- ------------------- --
+-- Kmer SP-GiST index  --
+-- ------------------- --
+
+
+CREATE OR REPLACE FUNCTION kmer_spgist_compress(kmer)
+RETURNS bytea
+AS '$libdir/kmer_spgist', 'kmer_spgist_compress'
+LANGUAGE C IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION kmer_spgist_config(internal, internal)
+RETURNS void
+AS '$libdir/kmer_spgist', 'kmer_spgist_config'
+LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+CREATE OR REPLACE FUNCTION kmer_spgist_choose(internal, internal)
+RETURNS void
+AS '$libdir/kmer_spgist', 'kmer_spgist_choose'
+LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+CREATE OR REPLACE FUNCTION kmer_spgist_picksplit(internal, internal)
+RETURNS void
+AS '$libdir/kmer_spgist', 'kmer_spgist_picksplit'
+LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+CREATE OR REPLACE FUNCTION kmer_spgist_inner_consistent(internal, internal)
+RETURNS void
+AS '$libdir/kmer_spgist', 'kmer_spgist_inner_consistent'
+LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+CREATE OR REPLACE FUNCTION kmer_spgist_leaf_consistent(internal, internal)
+RETURNS boolean
+AS '$libdir/kmer_spgist', 'kmer_spgist_leaf_consistent'
+LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+
+
+CREATE OPERATOR CLASS spgist_kmer_ops
+DEFAULT FOR TYPE kmer USING spgist
+AS
+    OPERATOR    6   = (kmer, kmer) ,
+    OPERATOR    8   ^@(kmer, kmer) ,
+    OPERATOR    10  @>(qkmer, kmer) ,
+    FUNCTION    1   kmer_spgist_config(internal, internal),
+    FUNCTION    2   kmer_spgist_choose(internal, internal),
+    FUNCTION    3   kmer_spgist_picksplit(internal, internal),
+    FUNCTION    4   kmer_spgist_inner_consistent(internal, internal),
+    FUNCTION    5   kmer_spgist_leaf_consistent(internal, internal),
+    FUNCTION    6   kmer_spgist_compress(kmer);

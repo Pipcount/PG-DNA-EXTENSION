@@ -1,6 +1,9 @@
 DROP TABLE IF EXISTS kmers; 
 DROP TABLE IF EXISTS DNAs;
 DROP TABLE IF EXISTS qkmers;
+DROP TABLE IF EXISTS large_table;
+drop index if exists large_table_kmer_idx;
+
 DROP EXTENSION IF EXISTS kmea;
 
 CREATE EXTENSION kmea;
@@ -70,3 +73,25 @@ with mykmers as (
 )
 select sum(count) as "Total kmers", count(*) as "Distinct kmers", count(*) filter (where count = 1) as "Unique kmers"
 from mykmers;
+
+
+
+-- Create the table
+CREATE TABLE large_table(
+    id serial primary key, 
+    kmer kmer
+);
+
+-- Insert 1,000,000 rows into the table
+INSERT INTO large_table (kmer)
+SELECT k.kmer
+FROM generate_kmers('CCACTAACAATGATCCACTAACAATGATCCACTAACAATGATCCACTAACAATGATCCACTAACAATGATCCACTAACAATGATCCACTAACAATGATCCACTAACAATGATCCACTAACAATGATCCACTAACAATGATCCACTAACAATGATCCACTAACAATGATCCACTAACAATGATCCACTAACAATGATCCACTAACAATGATCCACTAACAATGATCCACTAACAATGATCCACTAACAATGATCCACTAACAATGATCCACTAACAATGATCCACTAACAATGATCCACTAACAATGAT', 2) as k(kmer);
+
+create index large_table_kmer_idx on large_table using spgist(kmer spgist_kmer_ops);
+
+insert into large_table (kmer)
+select k.kmer
+from generate_kmers('CCACT', 2) as k(kmer);
+
+EXPLAIN ANALYZE SELECT * FROM large_table WHERE kmer = 'AA';
+-- EXPLAIN ANALYZE SELECT * FROM large_table WHERE kmer ^@ 'AC';
