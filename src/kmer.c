@@ -16,18 +16,8 @@ static Kmer* make_kmer(const char *str, uint8_t length) {
 
 	for (uint8_t i = 0; i < length; i++) {
 		char c = str[i];
-		switch (toupper(c)) {
-			case 'A': kmer -> value = (kmer -> value << 2) | 0b00; break; // TODO: Use LUT for this
-			case 'C': kmer -> value = (kmer -> value << 2) | 0b01; break;
-			case 'G': kmer -> value = (kmer -> value << 2) | 0b10; break;
-			case 'T': kmer -> value = (kmer -> value << 2) | 0b11; break;
-			default:
-				ereport(ERROR, (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-				errmsg("invalid nucleotide")));
-				break;
-		}
+		add_nucleotide_to_uint(kmer -> value, c);
 	}
-	//! elog(INFO, "kmer value after make_kmer: %lu", kmer -> value);
 	return kmer;
 }
 
@@ -63,15 +53,7 @@ static char* kmer_value_to_string(Kmer* kmer) {
         uint8_t shift = (kmer -> k - i - 1) * 2;
         uint8_t nucleotide = (kmer -> value >> shift) & 0b11;
 
-        if (nucleotide == 0b00) {       // TODO: Use LUT for this
-            str[i] = 'A';
-        } else if (nucleotide == 0b01) {
-            str[i] = 'C';
-        } else if (nucleotide == 0b10) {
-            str[i] = 'G';
-        } else if (nucleotide == 0b11) {
-            str[i] = 'T';
-        }
+		str[i] = BINARY_TO_NUCLEOTIDE[nucleotide];
     }
 	str[kmer->k] = '\0';
 	return psprintf("%s", str);
@@ -85,8 +67,6 @@ static char* kmer_value_to_string(Kmer* kmer) {
  */
 static bool internal_kmer_startswith(Kmer* kmer, Kmer* prefix) {
 	if (kmer -> k < prefix -> k) {
-		ereport(ERROR, (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-	  	errmsg("kmer should not be shorter than prefix")));
 		return false;
 	}
 	uint64_t extracted_from_kmer = kmer -> value >> (kmer -> k - prefix -> k) * 2;
@@ -104,7 +84,6 @@ PG_FUNCTION_INFO_V1(kmer_in);
 Datum kmer_in(PG_FUNCTION_ARGS) {
 	char *str = PG_GETARG_CSTRING(0);
 	Kmer* kmer = kmer_parse(str);
-	//! elog(INFO, "kmer value (kmer_in): %lu", kmer -> value);
 	PG_RETURN_KMER_P(kmer);
 }
 
@@ -117,9 +96,7 @@ Datum kmer_in(PG_FUNCTION_ARGS) {
 PG_FUNCTION_INFO_V1(kmer_out);
 Datum kmer_out(PG_FUNCTION_ARGS) {
 	Kmer *kmer = PG_GETARG_KMER_P(0);
-	//! elog(INFO, "kmer value (kmer_out): %lu, size %d", kmer -> value, kmer -> k);
 	char *str = kmer_value_to_string(kmer);
-	//! elog(INFO, "kmer string (kmer_out): %sblablabla", str);
 	PG_FREE_IF_COPY(kmer, 0);
 	PG_RETURN_CSTRING(str);
 }
@@ -132,9 +109,8 @@ Datum kmer_out(PG_FUNCTION_ARGS) {
  */
 PG_FUNCTION_INFO_V1(kmer_recv);
 Datum kmer_recv(PG_FUNCTION_ARGS) {
-	//! elog(INFO, "kmer_recv");
 	StringInfo buf = (StringInfo) PG_GETARG_POINTER(0);
-	Kmer *kmer = palloc(sizeof(Kmer));
+	Kmer *kmer = palloc0(sizeof(Kmer));
 	kmer -> value = pq_getmsgint64(buf);
 	kmer -> k = pq_getmsgint(buf, 8);
 	PG_RETURN_KMER_P(kmer);
@@ -148,7 +124,6 @@ Datum kmer_recv(PG_FUNCTION_ARGS) {
  */
 PG_FUNCTION_INFO_V1(kmer_send);
 Datum kmer_send(PG_FUNCTION_ARGS) {
-	//! elog(INFO, "kmer_send");
 	Kmer *kmer = PG_GETARG_KMER_P(0);
 	StringInfoData buf;
 	pq_begintypsend(&buf);

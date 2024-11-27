@@ -50,15 +50,7 @@ static DNA* make_dna(const char* str, uint32_t length) {
                 current_byte <<= 2;                                   // This is necessary because the last byte might not hold 4 nucleotides  
                 continue;
             }
-            switch (toupper(c)) {
-                case 'A': current_byte = (current_byte << 2) | 0b00; break; // TODO: Use LUT for this
-                case 'C': current_byte = (current_byte << 2) | 0b01; break;
-                case 'G': current_byte = (current_byte << 2) | 0b10; break;
-                case 'T': current_byte = (current_byte << 2) | 0b11; break;
-                default:
-                    ereport(ERROR, (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-                    errmsg("invalid nucleotide")));
-            }
+            add_nucleotide_to_uint(current_byte, c);
         }
         *data_ptr = current_byte;
         data_ptr++;
@@ -105,12 +97,7 @@ static char* dna_to_string(DNA* dna) {
             if (i + j >= length) {                                                      // stop reading nucleotides if we reached the end of the DNA sequence
                 break;
             }
-            switch (nucleotide) {
-                case 0b00: str[i + j] = 'A'; break; // TODO: Use LUT for this
-                case 0b01: str[i + j] = 'C'; break;
-                case 0b10: str[i + j] = 'G'; break;
-                case 0b11: str[i + j] = 'T'; break;
-            }
+            str[i + j] = BINARY_TO_NUCLEOTIDE[nucleotide];
         }
     }
     str[length] = '\0';

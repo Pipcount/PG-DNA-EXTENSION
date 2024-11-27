@@ -2,6 +2,65 @@
 
 PG_MODULE_MAGIC;
 
+/**
+ * @brief LUT to convert a IUPAC nucleotide code to a 4-bit representation.
+ * 
+ * The LUT is indexed by the ASCII value of the nucleotide minus the ASCII value of 'A'.
+ * Encoding for non IUPAC nucleotide characters is {0b00, 0b00}. This needs to be checked when using the LUT.
+ */
+static const uint8_t IUPAC_CODE_TO_BINARY[26][2] = {
+    {0b10, 0b00},  // A
+    {0b01, 0b11},  // B
+    {0b01, 0b00},  // C
+    {0b10, 0b11},  // D
+    {0b00, 0b00},  // E
+    {0b00, 0b00},  // F
+    {0b00, 0b10},  // G
+    {0b11, 0b01},  // H
+    {0b00, 0b00},  // I
+    {0b00, 0b00},  // J
+    {0b00, 0b11},  // K
+    {0b00, 0b00},  // L
+    {0b11, 0b00},  // M
+    {0b11, 0b11},  // N
+    {0b00, 0b00},  // O
+    {0b00, 0b00},  // P
+    {0b00, 0b00},  // Q
+    {0b10, 0b10},  // R
+    {0b01, 0b10},  // S
+    {0b00, 0b01},  // T
+    {0b00, 0b00},  // U
+    {0b11, 0b10},  // V
+    {0b10, 0b01},  // W
+    {0b00, 0b00},  // X
+    {0b01, 0b01},  // Y
+    {0b00, 0b00}   // Z     
+};
+
+/**
+ * @brief LUT to convert a 4-bit representation of an IUPAC nucleotide code to a character representation.
+ * 
+ * If the 4-bit representation is 0, the nucleotide is invalid and the character is '$'.
+ * This should never happen but is handled here just in case.
+ */
+static const char BINARY_TO_IUPAC_CODE[16] = {
+    '$',  // 0000
+    'T',   // 0001
+    'G',   // 0010
+    'K',   // 0011
+    'C',   // 0100
+    'Y',   // 0101
+    'S',   // 0110
+    'B',   // 0111
+    'A',   // 1000
+    'W',   // 1001
+    'R',   // 1010
+    'D',   // 1011
+    'M',   // 1100
+    'H',   // 1101
+    'V',   // 1110
+    'N'    // 1111
+};
 
 /** 
  * @brief Creates a Q-kmer from a string.
@@ -18,27 +77,14 @@ static Qkmer* make_qkmer_from_str(const char* str, uint8_t length) {
 
     for (uint8_t i = 0; i < length; i++) {
         char c = str[i];
-        switch (toupper(c)) {
-            case 'A': qkmer -> ac = (qkmer -> ac << 2) | 0b10; qkmer -> gt = (qkmer -> gt << 2) | 0b00; break; // TODO: Use LUT for this
-            case 'C': qkmer -> ac = (qkmer -> ac << 2) | 0b01; qkmer -> gt = (qkmer -> gt << 2) | 0b00; break;
-            case 'G': qkmer -> ac = (qkmer -> ac << 2) | 0b00; qkmer -> gt = (qkmer -> gt << 2) | 0b10; break;
-            case 'T': qkmer -> ac = (qkmer -> ac << 2) | 0b00; qkmer -> gt = (qkmer -> gt << 2) | 0b01; break;
-            case 'W': qkmer -> ac = (qkmer -> ac << 2) | 0b10; qkmer -> gt = (qkmer -> gt << 2) | 0b01; break;
-            case 'S': qkmer -> ac = (qkmer -> ac << 2) | 0b01; qkmer -> gt = (qkmer -> gt << 2) | 0b10; break;
-            case 'M': qkmer -> ac = (qkmer -> ac << 2) | 0b11; qkmer -> gt = (qkmer -> gt << 2) | 0b00; break;
-            case 'K': qkmer -> ac = (qkmer -> ac << 2) | 0b00; qkmer -> gt = (qkmer -> gt << 2) | 0b11; break;
-            case 'R': qkmer -> ac = (qkmer -> ac << 2) | 0b10; qkmer -> gt = (qkmer -> gt << 2) | 0b10; break;
-            case 'Y': qkmer -> ac = (qkmer -> ac << 2) | 0b01; qkmer -> gt = (qkmer -> gt << 2) | 0b01; break;
-            case 'B': qkmer -> ac = (qkmer -> ac << 2) | 0b01; qkmer -> gt = (qkmer -> gt << 2) | 0b11; break;
-            case 'D': qkmer -> ac = (qkmer -> ac << 2) | 0b10; qkmer -> gt = (qkmer -> gt << 2) | 0b11; break;
-            case 'H': qkmer -> ac = (qkmer -> ac << 2) | 0b11; qkmer -> gt = (qkmer -> gt << 2) | 0b01; break;
-            case 'V': qkmer -> ac = (qkmer -> ac << 2) | 0b11; qkmer -> gt = (qkmer -> gt << 2) | 0b10; break;
-            case 'N': qkmer -> ac = (qkmer -> ac << 2) | 0b11; qkmer -> gt = (qkmer -> gt << 2) | 0b11; break;
-            default:
-                ereport(ERROR, (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-                errmsg("invalid nucleotide")));
-                break;
+        uint8_t index = toupper(c) - 'A';
+        if (index < 0 || index > 25 || (IUPAC_CODE_TO_BINARY[index][0] == 0b00 && IUPAC_CODE_TO_BINARY[index][1] == 0b00)) {
+            ereport(ERROR, (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+                            errmsg("invalid nucleotide")));
         }
+        qkmer -> ac = (qkmer -> ac << 2) | IUPAC_CODE_TO_BINARY[index][0];
+        qkmer -> gt = (qkmer -> gt << 2) | IUPAC_CODE_TO_BINARY[index][1];
+
     }
     return qkmer;
 }
@@ -57,26 +103,12 @@ static char* qkmer_value_to_string(Qkmer* qkmer) {
         uint8_t gt_nucleotide = (qkmer -> gt >> shift) & 0b11;
 
         uint8_t nucleotide = (ac_nucleotide << 2) | gt_nucleotide;
-        switch (nucleotide) {
-            case 0b1000: str[i] = 'A'; break;        // TODO: Use LUT for this
-            case 0b0100: str[i] = 'C'; break;
-            case 0b0010: str[i] = 'G'; break;
-            case 0b0001: str[i] = 'T'; break;
-            case 0b1001: str[i] = 'W'; break;
-            case 0b0110: str[i] = 'S'; break;
-            case 0b1100: str[i] = 'M'; break;
-            case 0b0011: str[i] = 'K'; break;
-            case 0b1010: str[i] = 'R'; break;
-            case 0b0101: str[i] = 'Y'; break;
-            case 0b0111: str[i] = 'B'; break;
-            case 0b1011: str[i] = 'D'; break;
-            case 0b1101: str[i] = 'H'; break;
-            case 0b1110: str[i] = 'V'; break;
-            case 0b1111: str[i] = 'N'; break;
-            default:
-                ereport(ERROR, (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-                                errmsg("invalid binary value")));
+        char c = BINARY_TO_IUPAC_CODE[nucleotide];
+        if (c == '$') {                                             // This is maybe not the best way to handle this
+            ereport(ERROR, (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION), // This should also never happen
+                            errmsg("invalid nucleotide")));
         }
+        str[i] = c;
     }
     str[qkmer -> k] = '\0';
     return psprintf("%s", str);
@@ -92,33 +124,34 @@ static Qkmer* make_qkmer_from_kmer(Kmer* kmer) {
     Qkmer* qkmer = palloc0(sizeof(Qkmer));
     qkmer -> k = kmer -> k;
 
-    for (uint8_t i = 0; i < kmer -> k; i++) {
-        uint8_t shift = (kmer -> k - i - 1) * 2;
-        uint8_t nucleotide = (kmer -> value >> shift) & 0b11;
+    // Masks for extracting 2-bit pairs
+    const uint64_t odd_position_pair_mask = 0x3333333333333333; // Binary: 00110011... (two 1s in each pair)
+    const uint64_t even_position_pair_mask = 0xCCCCCCCCCCCCCCCC; // Binary: 11001100... (two 0s in each pair)
+    const uint64_t zero_one_mask = 0x5555555555555555; // Binary: 01010101... 
+    const uint64_t one_zero_mask = 0xAAAAAAAAAAAAAAAA; // Binary: 10101010... 
 
-        switch (nucleotide) {       // TODO: Use LUT for this
-            case 0b00:
-            qkmer -> ac = (qkmer -> ac << 2) | 0b10;
-            qkmer -> gt = (qkmer -> gt << 2) | 0b00;
-            break;
-            case 0b01:
-            qkmer -> ac = (qkmer -> ac << 2) | 0b01;
-            qkmer -> gt = (qkmer -> gt << 2) | 0b00;
-            break;
-            case 0b10:
-            qkmer -> ac = (qkmer -> ac << 2) | 0b00;
-            qkmer -> gt = (qkmer -> gt << 2) | 0b10;
-            break;
-            case 0b11:
-            qkmer -> ac = (qkmer -> ac << 2) | 0b00;
-            qkmer -> gt = (qkmer -> gt << 2) | 0b01;
-            break;
-            default:
-            ereport(ERROR, (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-                    errmsg("invalid nucleotide for kmer")));
-            break;
-        }
-    }
+    // Isolate T (11):
+    uint64_t t_odd = kmer->value & odd_position_pair_mask;
+    uint64_t t_even = kmer->value & even_position_pair_mask;
+    uint64_t t = t_odd & (t_odd >> 1) | t_even & (t_even >> 1);
+
+    // Isolate A (00): 
+    uint64_t a_odd = ~kmer->value & odd_position_pair_mask; 
+    uint64_t a_even = ~kmer->value & even_position_pair_mask;   
+    uint64_t a = a_odd & (a_odd >> 1) | a_even & (a_even >> 1);
+    a = a << 1;                                                     // to have 10 instead of 01
+
+    // Isolate C (01):
+    uint64_t c = kmer->value & zero_one_mask & ~t;
+
+    // Isolate G (10):
+    uint64_t g = (kmer->value & one_zero_mask) >> 1 & ~t;
+    g = g << 1;                                                     // to have 10 instead of 01
+
+    uint64_t length_mask = (1ULL << (kmer -> k * 2)) - 1;
+
+    qkmer -> ac = (a | c) & length_mask; // Mask to get rid of the bits that are not part of the k-mer (is necessary here)
+    qkmer -> gt = (g | t) & length_mask; // Mask to get rid of the bits that are not part of the k-mer (should not shange anything here)
     return qkmer;
 }
 
