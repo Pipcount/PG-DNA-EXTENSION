@@ -32,41 +32,56 @@ char* kmer_value_to_string(Kmer* kmer) {
 }
 
 /**
+ * @brief Function to get the common prefix length of 2 K-mers.
+ * 
+ * @param kmer1 The first K-mer.
+ * @param kmer2 The second K-mer.
+ * @return The common prefix length.
+ */
+uint8_t get_common_prefix_len(Kmer* kmer1, Kmer* kmer2) {
+    uint64_t kmer1_value = kmer1->value; // Copy the value to avoid modifying the original
+    uint64_t kmer2_value = kmer2->value; // Copy the value to avoid modifying the original
+
+    int size_diff = kmer1->k - kmer2->k;
+    uint8_t prefix_len;
+
+    /*
+        * If the K-mers have different sizes, we need to align them by shifting the larger one.
+        * We then compare the values to find the common prefix length.
+    */
+    if (size_diff > 0) {
+        prefix_len = kmer2->k;
+        kmer1_value >>= 2 * size_diff;
+    } else if (size_diff < 0) {
+        prefix_len = kmer1->k;
+        kmer2_value >>= 2 * -size_diff;
+    } else {
+        prefix_len = kmer1->k;
+    }
+    uint64_t xor = kmer1_value ^ kmer2_value;
+    while (xor != 0) {                            // if prefix_len is 0, xor will be 0
+        xor >>= 2;
+        prefix_len--;
+    }
+    return prefix_len;
+}
+
+
+/**
  * @brief Function to get the common prefix length of a set of K-mers.
  * 
  * @param datums The K-mers to compare.
  * @param nTuples The number of K-mers.
  * @return The common prefix length.
  */
-uint8_t get_common_prefix_len(Datum *datums, int nTuples) {
+uint8_t get_common_prefix_len_array(Datum *datums, int nTuples) {
     Kmer* first_kmer = DatumGetKmerP(datums[0]);
     uint8_t common_prefix_len = first_kmer->k;
     for (int i = 1; i < nTuples && common_prefix_len > 0; i++) {
         Kmer* kmer = DatumGetKmerP(datums[i]);
-        uint64_t first_kmer_value = first_kmer->value; // Copy the value to avoid modifying the original
-        uint64_t kmer_value = kmer->value;             // Copy the value to avoid modifying the original
 
-        int size_diff = first_kmer->k - kmer->k;
-        uint8_t prefix_len;
+        uint8_t prefix_len = get_common_prefix_len(first_kmer, kmer);
 
-        /*
-            * If the K-mers have different sizes, we need to align them by shifting the larger one.
-            * We then compare the values to find the common prefix length.
-        */
-        if (size_diff > 0) {
-            prefix_len = kmer->k;
-            first_kmer_value >>= 2 * size_diff;
-        } else if (size_diff < 0) {
-            prefix_len = first_kmer->k;
-            kmer_value >>= 2 * -size_diff;
-        } else {
-            prefix_len = first_kmer->k;
-        }
-        uint64_t xor = first_kmer_value ^ kmer_value;
-        while (xor != 0) {                            // if prefix_len is 0, xor will be 0
-            xor >>= 2;
-            prefix_len--;
-        }
         if (prefix_len < common_prefix_len) {
             common_prefix_len = prefix_len;
         }
@@ -110,7 +125,19 @@ kmer_spgist_choose(PG_FUNCTION_ARGS)
     elog(INFO, "kmer_spgist_choose");
     spgChooseIn *in = (spgChooseIn *) PG_GETARG_POINTER(0);
     spgChooseOut *out = (spgChooseOut *) PG_GETARG_POINTER(1);
+    Kmer *kmer_in = DatumGetKmerP(in->datum);
+    uint64_t prefix_kmer = 0;
+    uint8_t prefix_size = 0;
+    uint8_t common_prefix_len = 0;
 
+    
+    if(in ->hasPrefix){
+        Kmer *kmer = DatumGetKmerP(in->prefixDatum);
+        prefix_kmer = kmer->value;
+        prefix_size = kmer->k;
+
+        common_prefix_len = get_common_prefix_len(kmer_in, kmer);
+    }
     PG_RETURN_VOID();
 }
 
@@ -131,7 +158,7 @@ Datum kmer_spgist_picksplit(PG_FUNCTION_ARGS) {
     //     Kmer *kmer = DatumGetKmerP(in->datums[i]);
     //     elog(INFO, "kmer_spgist_picksplit: kmer->value: %s, kmer->k; %d", kmer_value_to_string(kmer), kmer->k);
     // }
-    uint8_t common_prefix_len = get_common_prefix_len(in->datums, in->nTuples);
+    uint8_t common_prefix_len = get_common_prefix_len_array(in->datums, in->nTuples);
     elog(INFO, "common_prefix_len: %d", common_prefix_len);
 
     if (common_prefix_len == 0) {
