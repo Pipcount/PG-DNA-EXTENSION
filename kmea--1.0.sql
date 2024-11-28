@@ -213,11 +213,6 @@ AS
 -- ------------------- --
 
 
-CREATE OR REPLACE FUNCTION kmer_spgist_compress(kmer)
-RETURNS bytea
-AS '$libdir/kmer_spgist', 'kmer_spgist_compress'
-LANGUAGE C IMMUTABLE;
-
 CREATE OR REPLACE FUNCTION kmer_spgist_config(internal, internal)
 RETURNS void
 AS '$libdir/kmer_spgist', 'kmer_spgist_config'
@@ -255,5 +250,4 @@ AS
     FUNCTION    2   kmer_spgist_choose(internal, internal),
     FUNCTION    3   kmer_spgist_picksplit(internal, internal),
     FUNCTION    4   kmer_spgist_inner_consistent(internal, internal),
-    FUNCTION    5   kmer_spgist_leaf_consistent(internal, internal),
-    FUNCTION    6   kmer_spgist_compress(kmer);
+    FUNCTION    5   kmer_spgist_leaf_consistent(internal, internal);
