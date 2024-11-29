@@ -1,8 +1,14 @@
 #include "kmer.h"
 #include "qkmer.h"
 #include "access/spgist.h"
+#include "utils/pg_locale.h"
+#include "utils/datum.h"
 
 PG_MODULE_MAGIC;
+
+#define EQUAL_STRATEGY_NUMBER 1
+#define PREFIX_STRATEGY_NUMBER 2
+#define QKMER_MATCHING_STRATEGY_NUMBER 3
 
 typedef struct KmerNodePtr
 {
@@ -39,11 +45,33 @@ char* kmer_value_to_string(Kmer* kmer) {
  * @return The K-mer with the first k nucleotides.
  */
 Kmer* get_first_k_nucleotides(Kmer* kmer, uint8_t k) {
+    if (k > kmer->k) {
+        ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE), errmsg("k cannot be greater than the K-mer size")));
+    }
     Kmer* first_kmer = palloc0(sizeof(Kmer));
     first_kmer->k = k;
     first_kmer->value = kmer->value >> (2 * (kmer->k - k));
     return first_kmer;
 }
+
+/**
+ * @brief Get the first k nucleotides of a QK-mer.
+ * 
+ * @param qkmer The QK-mer.
+ * @param k The number of nucleotides to get.
+ * @return The QK-mer with the first k nucleotides.
+ */
+Qkmer* get_first_k_nucleotides_qkmer(Qkmer* qkmer, uint8_t k) {
+    if (k > qkmer->k) {
+        ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE), errmsg("k cannot be greater than the QK-mer size")));
+    }
+    Qkmer* first_qkmer = palloc0(sizeof(Qkmer));
+    first_qkmer->k = k;
+    first_qkmer->ac = qkmer->ac >> (2 * (qkmer->k - k));
+    first_qkmer->gt = qkmer->gt >> (2 * (qkmer->k - k));
+    return first_qkmer;
+}
+
 
 /**
  * @brief Get the last k nucleotides of a K-mer.
@@ -149,6 +177,123 @@ static bool search_nucleotide(Datum *nodeLabels, int nNodes, int16 c, int *i) {
 	return false;
 }
 
+/**
+ * @brief Compare the n first nucleotides of two K-mers.
+ * 
+ * @param kmer1 The first K-mer.
+ * @param kmer2 The second K-mer.
+ * @param n The number of nucleotides to compare.
+ * @return The comparison result, -1 if kmer1 < kmer2, 0 if kmer1 == kmer2, 1 if kmer1 > kmer2.
+ */
+int compare_kmers(Kmer* kmer1, Kmer* kmer2, uint8_t n) {
+    Kmer* first_kmer1 = get_first_k_nucleotides(kmer1, n);
+    Kmer* first_kmer2 = get_first_k_nucleotides(kmer2, n);
+
+    int result = 0;
+    if (first_kmer1->value < first_kmer2->value) {
+        result = -1;
+    } else if (first_kmer1->value > first_kmer2->value) {
+        result = 1;
+    }
+    pfree(first_kmer1);
+    pfree(first_kmer2);
+    return result;
+}
+
+/**
+ * @brief Creates a Q-kmer from a K-mer.
+ * 
+ * @param kmer The K-mer to create the Q-kmer from.
+ * @return A pointer to the created Q-kmer.
+ */
+static Qkmer* make_qkmer_from_kmer(Kmer* kmer) {
+    Qkmer* qkmer = palloc0(sizeof(Qkmer));
+    qkmer -> k = kmer -> k;
+
+    // Masks for extracting 2-bit pairs
+    const uint64_t odd_position_pair_mask = 0x3333333333333333; // Binary: 00110011... (two 1s in each pair)
+    const uint64_t even_position_pair_mask = 0xCCCCCCCCCCCCCCCC; // Binary: 11001100... (two 0s in each pair)
+    const uint64_t zero_one_mask = 0x5555555555555555; // Binary: 01010101... 
+    const uint64_t one_zero_mask = 0xAAAAAAAAAAAAAAAA; // Binary: 10101010... 
+
+    // Isolate T (11):
+    uint64_t t_odd = kmer->value & odd_position_pair_mask;
+    uint64_t t_even = kmer->value & even_position_pair_mask;
+    uint64_t t = t_odd & (t_odd >> 1) | t_even & (t_even >> 1);
+
+    // Isolate A (00): 
+    uint64_t a_odd = ~kmer->value & odd_position_pair_mask; 
+    uint64_t a_even = ~kmer->value & even_position_pair_mask;   
+    uint64_t a = a_odd & (a_odd >> 1) | a_even & (a_even >> 1);
+    a = a << 1;                                                     // to have 10 instead of 01
+
+    // Isolate C (01):
+    uint64_t c = kmer->value & zero_one_mask & ~t;
+
+    // Isolate G (10):
+    uint64_t g = (kmer->value & one_zero_mask) >> 1 & ~t;
+    g = g << 1;                                                     // to have 10 instead of 01
+
+    uint64_t length_mask = (1ULL << (kmer -> k * 2)) - 1;
+
+    qkmer -> ac = (a | c) & length_mask; // Mask to get rid of the bits that are not part of the k-mer (is necessary here)
+    qkmer -> gt = (g | t) & length_mask; // Mask to get rid of the bits that are not part of the k-mer (should not shange anything here)
+    return qkmer;
+}
+
+
+/**
+ * @brief Match a QK-mer with a K-mer.
+ * 
+ * @param qkmer The QK-mer.
+ * @param kmer The K-mer.
+ * @return true if the QK-mer matches the K-mer, false otherwise.
+ */
+bool qkmer_contains(Qkmer* qkmer, Kmer* kmer) {
+    Qkmer* qkmer_from_kmer = make_qkmer_from_kmer(kmer);
+
+    if (qkmer -> k != kmer -> k) {
+        return false;
+    }
+
+    bool result = (qkmer_from_kmer -> ac & qkmer -> ac) == qkmer_from_kmer -> ac &&
+                  (qkmer_from_kmer -> gt & qkmer -> gt) == qkmer_from_kmer -> gt;
+    pfree(qkmer_from_kmer);
+    return result;
+}
+
+/**
+ * @brief Match a QK-mer with a K-mer up to a certain length.
+ * 
+ * @param qkmer The QK-mer.
+ * @param kmer The K-mer.
+ * @param n The number of nucleotides to compare.
+ * @return true if the QK-mer matches the K-mer, false otherwise.
+ */
+bool qkmer_contains_n(Qkmer* qkmer, Kmer* kmer, uint8_t n) {
+    Qkmer* first_qkmer = get_first_k_nucleotides_qkmer(qkmer, n);
+    Kmer* first_kmer = get_first_k_nucleotides(kmer, n);
+
+    bool result = qkmer_contains(first_qkmer, first_kmer);
+    pfree(first_qkmer);
+    pfree(first_kmer);
+    return result;
+}
+
+/**
+ * @brief Checks if a K-mer starts with a prefix.
+ * 
+ * @param kmer The K-mer to check.
+ * @param prefix The prefix to check.
+ * @return True if the K-mer starts with the prefix, false otherwise.
+ */
+static bool internal_kmer_startswith(Kmer* kmer, Kmer* prefix) {
+	if (kmer -> k < prefix -> k) {
+		return false;
+	}
+	uint64_t extracted_from_kmer = kmer -> value >> (kmer -> k - prefix -> k) * 2;
+	return extracted_from_kmer == prefix -> value;
+}
         
 
 /**
@@ -244,7 +389,7 @@ kmer_spgist_choose(PG_FUNCTION_ARGS)
         out->result.matchNode.nodeN = position;
 
         int level_add = common_prefix_len;
-        if (first_non_common_nucleotide != -1) {
+        if (first_non_common_nucleotide >= 0) {
             level_add++;
         }
         out->result.matchNode.levelAdd = level_add;
@@ -348,11 +493,161 @@ Datum kmer_spgist_picksplit(PG_FUNCTION_ARGS) {
 PG_FUNCTION_INFO_V1(kmer_spgist_inner_consistent);
 Datum
 kmer_spgist_inner_consistent(PG_FUNCTION_ARGS) {
+    spgInnerConsistentIn *in = (spgInnerConsistentIn *) PG_GETARG_POINTER(0);
+	spgInnerConsistentOut *out = (spgInnerConsistentOut *) PG_GETARG_POINTER(1);
+    Kmer* prefix_kmer = NULL;
+    Kmer* reconstructed_kmer;
+
+    Kmer* reconstructed_value = DatumGetKmerP(in->reconstructedValue);
+    Assert(reconstructed_value == NULL ? in->level == 0 : reconstructed_value->k == in->level);
+
+    int max_reconstruction_length = in->level + 1;
+
+    if (in->hasPrefix) {    // If we have a prefix
+        prefix_kmer = DatumGetKmerP(in->prefixDatum);
+        max_reconstruction_length += prefix_kmer->k;
+    }
+    reconstructed_kmer = palloc0(sizeof(Kmer));
+    reconstructed_kmer->k = max_reconstruction_length - 1;
+    reconstructed_kmer->value = 0;
+    if (in->level) {        // If we are not at the root, we need to add the first nucleotides to the reconstructed K-mer
+        Kmer* first_k_nucleotides = get_first_k_nucleotides(reconstructed_value, in->level);
+        reconstructed_kmer->value = first_k_nucleotides->value;
+        pfree(first_k_nucleotides);
+        elog(INFO, "Reconstructing K-mer with first %d nucleotides: %s", in->level, kmer_value_to_string(reconstructed_kmer));
+    }
+    /* 
+     * Prefix_kmer could be null, if we have no prefix, so we first check that it's not
+     * Then, if we have a prefix, we need to add it to the reconstructed K-mer
+     */
+    if (prefix_kmer && prefix_kmer->k) {
+        reconstructed_kmer->value = (reconstructed_kmer->value << (2 * in->level)) | prefix_kmer->value;
+    }
+
+    elog(INFO, "Entering loop with reconstructed_kmer->value: %s", kmer_value_to_string(reconstructed_kmer));
+
+    /*
+	 * Scan the child nodes.  For each one, complete the reconstructed value
+	 * and see if it's consistent with the query.  If so, emit an entry into
+	 * the output arrays.
+     * https://github.com/postgres/postgres/blob/5d39becf8ba0080c98fee4b63575552f6800b012/src/backend/access/spgist/spgtextproc.c#L479
+	 */
+    out->nodeNumbers = (int *) palloc(sizeof(int) * in->nNodes);
+	out->levelAdds = (int *) palloc(sizeof(int) * in->nNodes);
+	out->reconstructedValues = (Datum *) palloc(sizeof(Datum) * in->nNodes);
+	out->nNodes = 0;
+    for (int i = 0; i < in->nNodes; i++) {
+        elog(INFO, "i: %d", i);
+        int16 node_label = DatumGetInt16(in->nodeLabels[i]);
+        elog(INFO, "node_label: %d", node_label);
+        bool result = true;
+        if (node_label < 0) {
+            reconstructed_kmer->k = max_reconstruction_length - 1;
+        } else {
+            reconstructed_kmer->k = max_reconstruction_length;
+            elog(INFO, "reconstructed_kmer->value: %s", kmer_value_to_string(reconstructed_kmer));
+            Kmer* correct_kmer = get_first_k_nucleotides(reconstructed_kmer, in->level);
+            reconstructed_kmer->value = (correct_kmer->value << 2) | node_label;
+            pfree(correct_kmer);
+            elog(INFO, "reconstructed_kmer->value: %s", kmer_value_to_string(reconstructed_kmer));
+        }
+        for (int j = 0; j < in->nkeys; j++) {
+            elog(INFO, "j: %d", j);
+            StrategyNumber strategy = in->scankeys[j].sk_strategy;
+            
+            if (strategy == QKMER_MATCHING_STRATEGY_NUMBER) {
+                Qkmer* qkmer_in = DatumGetQkmerP(in->scankeys[j].sk_argument);
+                // Compare with our function
+                result = qkmer_contains_n(qkmer_in, reconstructed_kmer, Min(reconstructed_kmer->k, qkmer_in->k));
+            } else {
+                Kmer* kmer_in = DatumGetKmerP(in->scankeys[j].sk_argument);
+                elog(INFO, "kmer_in->k: %d, reconstruction_length: %d", kmer_in->k, reconstructed_kmer->k);
+                elog(INFO, "kmer_in->value: %s, reconstructed_kmer->value: %s", kmer_value_to_string(kmer_in), kmer_value_to_string(reconstructed_kmer));
+                int compare_result = compare_kmers(kmer_in, reconstructed_kmer, Min(reconstructed_kmer->k, kmer_in->k));
+                elog(INFO, "compare_result: %d", compare_result);
+                switch (strategy) {
+                    case EQUAL_STRATEGY_NUMBER:
+                        if (compare_result != 0 || kmer_in->k < reconstructed_kmer->k) {
+                            result = false;
+                        }
+                        break;
+                    case PREFIX_STRATEGY_NUMBER:
+                        if (compare_result != 0) {
+                            result = false;
+                        }
+                        break;
+                    default:
+                        ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE), errmsg("unrecognized strategy number: %d", strategy)));
+                        break;
+                }
+                elog(INFO, "result: %d", result);
+            }
+            if (!result) {
+                break;
+            }
+        }
+        if (result) {
+            elog(INFO, "Adding result reconstructed_kmer->value: %s", kmer_value_to_string(reconstructed_kmer));
+            out->nodeNumbers[out->nNodes] = i;
+            out->levelAdds[out->nNodes] = reconstructed_kmer->k - in->level;
+            reconstructed_kmer->k = max_reconstruction_length;
+            elog(INFO, "it has length %d", reconstructed_kmer->k);
+            out->reconstructedValues[out->nNodes] = datumCopy(KmerPGetDatum(reconstructed_kmer), false, -1);
+            out->nNodes++;
+        }
+    }
     PG_RETURN_VOID();
 }
 
 PG_FUNCTION_INFO_V1(kmer_spgist_leaf_consistent);
 Datum
 kmer_spgist_leaf_consistent(PG_FUNCTION_ARGS) {
-    PG_RETURN_BOOL(1);
+    spgLeafConsistentIn *in = (spgLeafConsistentIn *) PG_GETARG_POINTER(0);
+	spgLeafConsistentOut *out = (spgLeafConsistentOut *) PG_GETARG_POINTER(1);
+
+    Kmer* full_kmer;
+    out->recheck = false;
+
+    Kmer* leaf_kmer = DatumGetKmerP(in->leafDatum);
+    Kmer* reconstructed_value = DatumGetKmerP(in->reconstructedValue);
+
+    int full_length = in->level + leaf_kmer->k;        // Full length of the K-mer
+    if (leaf_kmer->k == 0 && in->level > 0) {
+        full_kmer = reconstructed_value;
+        out->leafValue = KmerPGetDatum(reconstructed_value);
+    } else {
+        full_kmer = palloc0(sizeof(Kmer));
+        full_kmer->k = full_length;
+        full_kmer->value = (reconstructed_value->value << (2 * in->level)) | leaf_kmer->value; // Combine the reconstructed value with the leaf value
+        out->leafValue = KmerPGetDatum(full_kmer);
+    }
+
+    bool result = true;
+    for (int j = 0; j < in->nkeys; j++) {
+        StrategyNumber strategy = in->scankeys[j].sk_strategy;
+        
+        if (strategy == QKMER_MATCHING_STRATEGY_NUMBER) {
+            Qkmer* qkmer_in = DatumGetQkmerP(in->scankeys[j].sk_argument);
+            // We want to check if the QK-mer contains the full K-mer exactly (no truncation)
+            result = qkmer_contains(qkmer_in, full_kmer);  
+        } else if (strategy == EQUAL_STRATEGY_NUMBER) {
+            Kmer* kmer_in = DatumGetKmerP(in->scankeys[j].sk_argument);
+            // Check if the K-mers are equal
+            result = KMER_EQUAL(kmer_in, full_kmer);
+        } else if (strategy == PREFIX_STRATEGY_NUMBER) {
+            Kmer* kmer_in = DatumGetKmerP(in->scankeys[j].sk_argument);
+            // Check if the K-mer starts with the prefix
+            result = internal_kmer_startswith(full_kmer, kmer_in);
+        } else {
+            ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE), errmsg("unrecognized strategy number: %d", strategy)));
+            result = false;
+        }
+
+        if (!result) {
+            break;
+        }
+
+    }
+    
+    PG_RETURN_BOOL(result);
 }

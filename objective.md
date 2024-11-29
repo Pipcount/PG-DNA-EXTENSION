@@ -15,3 +15,4 @@
 - [x] Improve Qkmer matching
 - [ ] Test qkmer matching against string implementation
 - [ ] Change kmer startswith
+- [ ] Link header files correctly so we don't have to redefine every function

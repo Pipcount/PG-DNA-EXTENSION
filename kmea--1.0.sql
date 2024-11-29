@@ -243,9 +243,9 @@ LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 CREATE OPERATOR CLASS spgist_kmer_ops
 DEFAULT FOR TYPE kmer USING spgist
 AS
-    OPERATOR    6   = (kmer, kmer) ,
-    OPERATOR    8   ^@(kmer, kmer) ,
-    OPERATOR    10  @>(qkmer, kmer) ,
+    OPERATOR    1   = (kmer, kmer) ,
+    OPERATOR    2   ^@(kmer, kmer) ,
+    OPERATOR    3   @>(qkmer, kmer) ,
     FUNCTION    1   kmer_spgist_config(internal, internal),
     FUNCTION    2   kmer_spgist_choose(internal, internal),
     FUNCTION    3   kmer_spgist_picksplit(internal, internal),
