@@ -32,6 +32,35 @@ char* kmer_value_to_string(Kmer* kmer) {
 }
 
 /**
+ * @brief Get the first k nucleotides of a K-mer.
+ * 
+ * @param kmer The K-mer.
+ * @param k The number of nucleotides to get.
+ * @return The K-mer with the first k nucleotides.
+ */
+Kmer* get_first_k_nucleotides(Kmer* kmer, uint8_t k) {
+    Kmer* first_kmer = palloc0(sizeof(Kmer));
+    first_kmer->k = k;
+    first_kmer->value = kmer->value >> (2 * (kmer->k - k));
+    return first_kmer;
+}
+
+/**
+ * @brief Get the last k nucleotides of a K-mer.
+ * 
+ * @param kmer The K-mer.
+ * @param k The number of nucleotides to get.
+ * @return The K-mer with the last k nucleotides.
+ */
+Kmer* get_last_k_nucleotides(Kmer* kmer, uint8_t k) {
+    Kmer* last_kmer = palloc0(sizeof(Kmer));
+    last_kmer->k = k;
+    last_kmer->value = kmer->value & ((1 << (2 * k)) - 1);
+    return last_kmer;
+}
+
+
+/**
  * @brief Function to get the common prefix length of 2 K-mers.
  * 
  * @param kmer1 The first K-mer.
@@ -89,6 +118,37 @@ uint8_t get_common_prefix_len_array(Datum *datums, int nTuples) {
     return common_prefix_len;
 }
 
+/**
+ * @brief Binary search an array of int16 datums for a match to c
+ * On success, *i gets the match location; on failure, it gets where to insert
+ * https://github.com/postgres/postgres/blob/master/src/backend/access/spgist/spgtextproc.c#L158
+ * 
+ * @param nodeLabels The array of int16 datums.
+ * @param nNodes The number of nodes.
+ * @param c The value to search for.
+ * @param i The index of the value.
+ * @return true if the value is found, false otherwise.
+ */
+static bool search_nucleotide(Datum *nodeLabels, int nNodes, int16 c, int *i) {
+	int	StopLow = 0, StopHigh = nNodes;
+
+	while (StopLow < StopHigh) {
+		int	StopMiddle = (StopLow + StopHigh) >> 1;
+		int16 middle = DatumGetInt16(nodeLabels[StopMiddle]);
+
+		if (c < middle) {
+			StopHigh = StopMiddle;
+        } else if (c > middle) {
+			StopLow = StopMiddle + 1;
+        } else {
+			*i = StopMiddle;
+			return true;
+		}
+	}
+	*i = StopHigh;
+	return false;
+}
+
         
 
 /**
@@ -101,7 +161,6 @@ PG_FUNCTION_INFO_V1(kmer_spgist_config);
 Datum kmer_spgist_config(PG_FUNCTION_ARGS) {
     spgConfigOut *cfg = (spgConfigOut *) PG_GETARG_POINTER(1);
     spgConfigIn *in = (spgConfigIn *) PG_GETARG_POINTER(0);
-    elog(INFO, "kmer_spgist_config");
 
     cfg->prefixType = in->attType;
     cfg->labelType = INT2OID; // 2 bits for the nucleotide
@@ -122,22 +181,95 @@ PG_FUNCTION_INFO_V1(kmer_spgist_choose);
 Datum
 kmer_spgist_choose(PG_FUNCTION_ARGS)
 {
-    elog(INFO, "kmer_spgist_choose");
     spgChooseIn *in = (spgChooseIn *) PG_GETARG_POINTER(0);
     spgChooseOut *out = (spgChooseOut *) PG_GETARG_POINTER(1);
+
+    // Kmer that will be indexed
     Kmer *kmer_in = DatumGetKmerP(in->datum);
-    uint64_t prefix_kmer = 0;
-    uint8_t prefix_size = 0;
+
     uint8_t common_prefix_len = 0;
-
+    int16 first_non_common_nucleotide = 0;
     
-    if(in ->hasPrefix){
-        Kmer *kmer = DatumGetKmerP(in->prefixDatum);
-        prefix_kmer = kmer->value;
-        prefix_size = kmer->k;
+    if (in->hasPrefix) {
+        // K-mer that is the prefix of the indexed K-mer
+        Kmer* prefix_kmer = DatumGetKmerP(in->prefixDatum);
 
-        common_prefix_len = get_common_prefix_len(kmer_in, kmer);
+        // prefix_kmer at the current level
+        Kmer* remaining_kmer_in = get_last_k_nucleotides(kmer_in, kmer_in->k - in->level);
+
+        // common prefix length between the prefix K-mer and the indexed K-mer
+        common_prefix_len = get_common_prefix_len(remaining_kmer_in, kmer_in);
+
+        if (common_prefix_len == prefix_kmer->k) {
+            if (common_prefix_len == kmer_in->k) {
+                first_non_common_nucleotide = -1;
+            } else {
+                first_non_common_nucleotide = kmer_in->value >> (2 * (kmer_in->k - common_prefix_len - in->level - 1)) & 0b11;
+            }
+        } else {
+            // split tuple
+            out->resultType = spgSplitTuple;
+
+            if (common_prefix_len == 0) {
+                out->result.splitTuple.prefixHasPrefix = false;
+            } else {
+                out->result.splitTuple.prefixHasPrefix = true;
+                Kmer* prefix_prefix_kmer = get_first_k_nucleotides(prefix_kmer, common_prefix_len);
+                out->result.splitTuple.prefixPrefixDatum = KmerPGetDatum(prefix_prefix_kmer);
+            }
+            out->result.splitTuple.prefixNNodes = 1;
+            out->result.splitTuple.prefixNodeLabels = (Datum *) palloc(sizeof(Datum));
+            int16 nucleotide_after_prefix_prefix = prefix_kmer->value >> (2 * (prefix_kmer->k - common_prefix_len - 1)) & 0b11;
+            out->result.splitTuple.prefixNodeLabels[0] = Int16GetDatum(nucleotide_after_prefix_prefix);
+            out->result.splitTuple.childNodeN = 0;
+
+            if (prefix_kmer->k - common_prefix_len == 1) {
+                out->result.splitTuple.postfixHasPrefix = false;
+            } else {
+                out->result.splitTuple.postfixHasPrefix = true;
+                Kmer* prefix_postfix_kmer = get_last_k_nucleotides(prefix_kmer, prefix_kmer->k - common_prefix_len - 1);
+                out->result.splitTuple.postfixPrefixDatum = KmerPGetDatum(prefix_postfix_kmer);
+            }
+            PG_RETURN_VOID();
+        }
+    } else if (kmer_in->k > in->level) { 
+        first_non_common_nucleotide = kmer_in->value >> (2 * (kmer_in->k - in->level - 1)) & 0b11;
+    } else {
+        first_non_common_nucleotide = -1;
     }
+    int position = 0;
+    if (search_nucleotide(in->nodeLabels, in->nNodes, first_non_common_nucleotide, &position)) {
+       // Descent to existing node because it exists, at position "position"
+        out->resultType = spgMatchNode;
+        out->result.matchNode.nodeN = position;
+
+        int level_add = common_prefix_len;
+        if (first_non_common_nucleotide != -1) {
+            level_add++;
+        }
+        out->result.matchNode.levelAdd = level_add;
+        if (kmer_in->k - in->level - level_add > 0) {
+            Kmer* remaining_kmer_in = get_last_k_nucleotides(kmer_in, kmer_in->k - in->level - level_add);
+            out->result.matchNode.restDatum = KmerPGetDatum(remaining_kmer_in);
+        } else {
+            out->result.matchNode.restDatum = KmerPGetDatum(get_last_k_nucleotides(kmer_in, 0));
+        }
+    } else if (in->allTheSame) {
+        // https://github.com/postgres/postgres/blob/master/src/backend/access/spgist/spgtextproc.c#L158
+        out->resultType = spgSplitTuple;
+		out->result.splitTuple.prefixHasPrefix = in->hasPrefix;
+		out->result.splitTuple.prefixPrefixDatum = in->prefixDatum;
+		out->result.splitTuple.prefixNNodes = 1;
+		out->result.splitTuple.prefixNodeLabels = (Datum *) palloc(sizeof(Datum));
+		out->result.splitTuple.prefixNodeLabels[0] = Int16GetDatum(-2);
+		out->result.splitTuple.childNodeN = 0;
+		out->result.splitTuple.postfixHasPrefix = false;
+    } else {
+		out->resultType = spgAddNode;
+        out->result.addNode.nodeLabel = Int16GetDatum(first_non_common_nucleotide);
+        out->result.addNode.nodeN = position;
+    }
+
     PG_RETURN_VOID();
 }
 
@@ -150,7 +282,6 @@ static int compare_nodes(const void *a, const void *b) {
 
 PG_FUNCTION_INFO_V1(kmer_spgist_picksplit);
 Datum kmer_spgist_picksplit(PG_FUNCTION_ARGS) {
-    elog(INFO, "kmer_spgist_picksplit");
     spgPickSplitIn *in = (spgPickSplitIn *) PG_GETARG_POINTER(0);
     spgPickSplitOut *out = (spgPickSplitOut *) PG_GETARG_POINTER(1);
 
@@ -159,16 +290,13 @@ Datum kmer_spgist_picksplit(PG_FUNCTION_ARGS) {
     //     elog(INFO, "kmer_spgist_picksplit: kmer->value: %s, kmer->k; %d", kmer_value_to_string(kmer), kmer->k);
     // }
     uint8_t common_prefix_len = get_common_prefix_len_array(in->datums, in->nTuples);
-    elog(INFO, "common_prefix_len: %d", common_prefix_len);
 
     if (common_prefix_len == 0) {
         out->hasPrefix = false;
     } else {
         out->hasPrefix = true;
         Kmer* kmer0 = DatumGetKmerP(in->datums[0]);
-        Kmer* prefix_kmer = palloc0(sizeof(Kmer));
-        prefix_kmer->k = common_prefix_len;
-        prefix_kmer->value = kmer0->value >> (2 * (kmer0->k - common_prefix_len));
+        Kmer* prefix_kmer = get_first_k_nucleotides(kmer0, common_prefix_len);
         out->prefixDatum = KmerPGetDatum(prefix_kmer);
     }
 
@@ -201,14 +329,11 @@ Datum kmer_spgist_picksplit(PG_FUNCTION_ARGS) {
             out->nodeLabels[out->nNodes] = Int16GetDatum(nodes[i].first_non_common_nucleotide);
             out->nNodes++;
         }
-        Kmer* leaf_kmer = palloc0(sizeof(Kmer));
         if (common_prefix_len < kmeri->k) {
-            leaf_kmer->k = kmeri->k - common_prefix_len - 1;
-            leaf_kmer->value = kmeri->value & ((1 << (2 * leaf_kmer->k)) - 1); 
+            Kmer* leaf_kmer = get_last_k_nucleotides(kmeri, kmeri->k - common_prefix_len - 1);
             leaf_datum = KmerPGetDatum(leaf_kmer);
         } else {
-            leaf_kmer->k = 0;
-            leaf_kmer->value = 0;
+            Kmer* leaf_kmer = get_last_k_nucleotides(kmeri, 0);
             leaf_datum = KmerPGetDatum(leaf_kmer);
         }
 
