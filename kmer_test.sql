@@ -90,6 +90,6 @@ FROM generate_kmers('GGGGCCGGTGCTACATATGGCTTGCTAAGCCTCCTGGCGCCGACCCGGCTGCAACCTCT
 create index large_table_kmer_idx on large_table using spgist(kmer spgist_kmer_ops);
 
 
-EXPLAIN ANALYSE SELECT COUNT(*) FROM large_table WHERE kmer = 'AGGTCA';
-SELECT COUNT(*) FROM large_table WHERE kmer = 'AGGTCA';
+EXPLAIN ANALYSE SELECT COUNT(*) FROM large_table WHERE kmer = 'GCTAAG';
+SELECT COUNT(*) FROM large_table WHERE kmer = 'GCTAAG';
 -- EXPLAIN ANALYZE SELECT * FROM large_table WHERE kmer ^@ 'AC';
