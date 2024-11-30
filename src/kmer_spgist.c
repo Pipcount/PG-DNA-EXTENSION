@@ -19,113 +19,6 @@ typedef struct KmerNodePtr
 	int16		first_non_common_nucleotide;
 } KmerNodePtr;
 
-
-/**
- * @brief Converts a K-mer to a string.
- * 
- * @param kmer The K-mer to convert.
- * @return The string representation of the K-mer.
- */
-static char* kmer_value_to_string(Kmer* kmer) {
-	char str[32];
-	//! elog(INFO, "kmer value (kmer_value_to_string): %lu", kmer -> value);
-	for (uint8_t i = 0; i < kmer -> k; i++) {
-        uint8_t shift = (kmer -> k - i - 1) * 2;
-        uint8_t nucleotide = (kmer -> value >> shift) & 0b11;
-
-		str[i] = BINARY_TO_NUCLEOTIDE[nucleotide];
-    }
-	str[kmer->k] = '\0';
-	return psprintf("%s", str);
-}
-
-/**
- * @brief Get the first k nucleotides of a K-mer.
- * 
- * @param kmer The K-mer.
- * @param k The number of nucleotides to get.
- * @return The K-mer with the first k nucleotides.
- */
-static Kmer* get_first_k_nucleotides(Kmer* kmer, uint8_t k) {
-    if (k > kmer->k) {
-        ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE), errmsg("k cannot be greater than the K-mer size")));
-    }
-    Kmer* first_kmer = palloc0(sizeof(Kmer));
-    first_kmer->k = k;
-    first_kmer->value = kmer->value >> (2 * (kmer->k - k));
-    return first_kmer;
-}
-
-/**
- * @brief Get the first k nucleotides of a QK-mer.
- * 
- * @param qkmer The QK-mer.
- * @param k The number of nucleotides to get.
- * @return The QK-mer with the first k nucleotides.
- */
-static Qkmer* get_first_k_nucleotides_qkmer(Qkmer* qkmer, uint8_t k) {
-    if (k > qkmer->k) {
-        ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE), errmsg("k cannot be greater than the QK-mer size")));
-    }
-    Qkmer* first_qkmer = palloc0(sizeof(Qkmer));
-    first_qkmer->k = k;
-    first_qkmer->ac = qkmer->ac >> (2 * (qkmer->k - k));
-    first_qkmer->gt = qkmer->gt >> (2 * (qkmer->k - k));
-    return first_qkmer;
-}
-
-
-/**
- * @brief Get the last k nucleotides of a K-mer.
- * 
- * @param kmer The K-mer.
- * @param k The number of nucleotides to get.
- * @return The K-mer with the last k nucleotides.
- */
-static Kmer* get_last_k_nucleotides(Kmer* kmer, uint8_t k) {
-    Kmer* last_kmer = palloc0(sizeof(Kmer));
-    last_kmer->k = k;
-    last_kmer->value = kmer->value & ((1 << (2 * k)) - 1);
-    return last_kmer;
-}
-
-
-/**
- * @brief Function to get the common prefix length of 2 K-mers.
- * 
- * @param kmer1 The first K-mer.
- * @param kmer2 The second K-mer.
- * @return The common prefix length.
- */
-static uint8_t get_common_prefix_len(Kmer* kmer1, Kmer* kmer2) {
-    uint64_t kmer1_value = kmer1->value; // Copy the value to avoid modifying the original
-    uint64_t kmer2_value = kmer2->value; // Copy the value to avoid modifying the original
-
-    int size_diff = kmer1->k - kmer2->k;
-    uint8_t prefix_len;
-
-    /*
-        * If the K-mers have different sizes, we need to align them by shifting the larger one.
-        * We then compare the values to find the common prefix length.
-    */
-    if (size_diff > 0) {
-        prefix_len = kmer2->k;
-        kmer1_value >>= 2 * size_diff;
-    } else if (size_diff < 0) {
-        prefix_len = kmer1->k;
-        kmer2_value >>= 2 * -size_diff;
-    } else {
-        prefix_len = kmer1->k;
-    }
-    uint64_t xor = kmer1_value ^ kmer2_value;
-    while (xor != 0) {                            // if prefix_len is 0, xor will be 0
-        xor >>= 2;
-        prefix_len--;
-    }
-    return prefix_len;
-}
-
-
 /**
  * @brief Function to get the common prefix length of a set of K-mers.
  * 
@@ -179,90 +72,6 @@ static bool search_nucleotide(Datum *nodeLabels, int nNodes, int16 c, int *i) {
 	return false;
 }
 
-/**
- * @brief Compare the n first nucleotides of two K-mers.
- * 
- * @param kmer1 The first K-mer.
- * @param kmer2 The second K-mer.
- * @param n The number of nucleotides to compare.
- * @return The comparison result, -1 if kmer1 < kmer2, 0 if kmer1 == kmer2, 1 if kmer1 > kmer2.
- */
-static int compare_kmers(Kmer* kmer1, Kmer* kmer2, uint8_t n) {
-    Kmer* first_kmer1 = get_first_k_nucleotides(kmer1, n);
-    Kmer* first_kmer2 = get_first_k_nucleotides(kmer2, n);
-
-    int result = 0;
-    if (first_kmer1->value < first_kmer2->value) {
-        result = -1;
-    } else if (first_kmer1->value > first_kmer2->value) {
-        result = 1;
-    }
-    pfree(first_kmer1);
-    pfree(first_kmer2);
-    return result;
-}
-
-/**
- * @brief Creates a Q-kmer from a K-mer.
- * 
- * @param kmer The K-mer to create the Q-kmer from.
- * @return A pointer to the created Q-kmer.
- */
-static Qkmer* make_qkmer_from_kmer(Kmer* kmer) {
-    Qkmer* qkmer = palloc0(sizeof(Qkmer));
-    qkmer -> k = kmer -> k;
-
-    // Masks for extracting 2-bit pairs
-    const uint64_t odd_position_pair_mask = 0x3333333333333333; // Binary: 00110011... (two 1s in each pair)
-    const uint64_t even_position_pair_mask = 0xCCCCCCCCCCCCCCCC; // Binary: 11001100... (two 0s in each pair)
-    const uint64_t zero_one_mask = 0x5555555555555555; // Binary: 01010101... 
-    const uint64_t one_zero_mask = 0xAAAAAAAAAAAAAAAA; // Binary: 10101010... 
-
-    // Isolate T (11):
-    uint64_t t_odd = kmer->value & odd_position_pair_mask;
-    uint64_t t_even = kmer->value & even_position_pair_mask;
-    uint64_t t = t_odd & (t_odd >> 1) | t_even & (t_even >> 1);
-
-    // Isolate A (00): 
-    uint64_t a_odd = ~kmer->value & odd_position_pair_mask; 
-    uint64_t a_even = ~kmer->value & even_position_pair_mask;   
-    uint64_t a = a_odd & (a_odd >> 1) | a_even & (a_even >> 1);
-    a = a << 1;                                                     // to have 10 instead of 01
-
-    // Isolate C (01):
-    uint64_t c = kmer->value & zero_one_mask & ~t;
-
-    // Isolate G (10):
-    uint64_t g = (kmer->value & one_zero_mask) >> 1 & ~t;
-    g = g << 1;                                                     // to have 10 instead of 01
-
-    uint64_t length_mask = (1ULL << (kmer -> k * 2)) - 1;
-
-    qkmer -> ac = (a | c) & length_mask; // Mask to get rid of the bits that are not part of the k-mer (is necessary here)
-    qkmer -> gt = (g | t) & length_mask; // Mask to get rid of the bits that are not part of the k-mer (should not shange anything here)
-    return qkmer;
-}
-
-
-/**
- * @brief Match a QK-mer with a K-mer.
- * 
- * @param qkmer The QK-mer.
- * @param kmer The K-mer.
- * @return true if the QK-mer matches the K-mer, false otherwise.
- */
-static bool qkmer_contains(Qkmer* qkmer, Kmer* kmer) {
-    Qkmer* qkmer_from_kmer = make_qkmer_from_kmer(kmer);
-
-    if (qkmer -> k != kmer -> k) {
-        return false;
-    }
-
-    bool result = (qkmer_from_kmer -> ac & qkmer -> ac) == qkmer_from_kmer -> ac &&
-                  (qkmer_from_kmer -> gt & qkmer -> gt) == qkmer_from_kmer -> gt;
-    pfree(qkmer_from_kmer);
-    return result;
-}
 
 /**
  * @brief Match a QK-mer with a K-mer up to a certain length.
@@ -276,27 +85,14 @@ static bool qkmer_contains_n(Qkmer* qkmer, Kmer* kmer, uint8_t n) {
     Qkmer* first_qkmer = get_first_k_nucleotides_qkmer(qkmer, n);
     Kmer* first_kmer = get_first_k_nucleotides(kmer, n);
 
-    bool result = qkmer_contains(first_qkmer, first_kmer);
+    bool result = qkmer_contains_internal(first_qkmer, first_kmer);
     pfree(first_qkmer);
     pfree(first_kmer);
     return result;
 }
 
-/**
- * @brief Checks if a K-mer starts with a prefix.
- * 
- * @param kmer The K-mer to check.
- * @param prefix The prefix to check.
- * @return True if the K-mer starts with the prefix, false otherwise.
- */
-static bool internal_kmer_startswith(Kmer* kmer, Kmer* prefix) {
-	if (kmer -> k < prefix -> k) {
-		return false;
-	}
-	uint64_t extracted_from_kmer = kmer -> value >> (kmer -> k - prefix -> k) * 2;
-	return extracted_from_kmer == prefix -> value;
-}
-        
+/* ************************************************************************** */
+
 
 /**
  * @brief Postgres function that defines the SP-GiST configuration for K-mers.
@@ -611,7 +407,7 @@ kmer_spgist_leaf_consistent(PG_FUNCTION_ARGS) {
         if (strategy == QKMER_MATCHING_STRATEGY_NUMBER) {
             Qkmer* qkmer_in = DatumGetQkmerP(in->scankeys[j].sk_argument);
             // We want to check if the QK-mer contains the full K-mer exactly (no truncation)
-            result = qkmer_contains(qkmer_in, full_kmer);  
+            result = qkmer_contains_internal(qkmer_in, full_kmer);  
         } else if (strategy == EQUAL_STRATEGY_NUMBER) {
             Kmer* kmer_in = DatumGetKmerP(in->scankeys[j].sk_argument);
             // Check if the K-mers are equal

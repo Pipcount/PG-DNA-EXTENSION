@@ -64,13 +64,104 @@ char* kmer_value_to_string(Kmer* kmer) {
  * @param prefix The prefix to check.
  * @return True if the K-mer starts with the prefix, false otherwise.
  */
-static bool internal_kmer_startswith(Kmer* kmer, Kmer* prefix) {
+bool internal_kmer_startswith(Kmer* kmer, Kmer* prefix) {
 	if (kmer -> k < prefix -> k) {
 		return false;
 	}
 	uint64_t extracted_from_kmer = kmer -> value >> (kmer -> k - prefix -> k) * 2;
 	return extracted_from_kmer == prefix -> value;
 }
+
+/**
+ * @brief Get the first k nucleotides of a K-mer.
+ * 
+ * @param kmer The K-mer.
+ * @param k The number of nucleotides to get.
+ * @return The K-mer with the first k nucleotides.
+ */
+Kmer* get_first_k_nucleotides(Kmer* kmer, uint8_t k) {
+    if (k > kmer->k) {
+        ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE), errmsg("k cannot be greater than the K-mer size")));
+    }
+    Kmer* first_kmer = palloc0(sizeof(Kmer));
+    first_kmer->k = k;
+    first_kmer->value = kmer->value >> (2 * (kmer->k - k));
+    return first_kmer;
+}
+
+/**
+ * @brief Get the last k nucleotides of a K-mer.
+ * 
+ * @param kmer The K-mer.
+ * @param k The number of nucleotides to get.
+ * @return The K-mer with the last k nucleotides.
+ */
+Kmer* get_last_k_nucleotides(Kmer* kmer, uint8_t k) {
+    Kmer* last_kmer = palloc0(sizeof(Kmer));
+    last_kmer->k = k;
+    last_kmer->value = kmer->value & ((1 << (2 * k)) - 1);
+    return last_kmer;
+}
+
+/**
+ * @brief Function to get the common prefix length of 2 K-mers.
+ * 
+ * @param kmer1 The first K-mer.
+ * @param kmer2 The second K-mer.
+ * @return The common prefix length.
+ */
+uint8_t get_common_prefix_len(Kmer* kmer1, Kmer* kmer2) {
+    uint64_t kmer1_value = kmer1->value; // Copy the value to avoid modifying the original
+    uint64_t kmer2_value = kmer2->value; // Copy the value to avoid modifying the original
+
+    int size_diff = kmer1->k - kmer2->k;
+    uint8_t prefix_len;
+
+    /*
+     * If the K-mers have different sizes, we need to align them by shifting the larger one.
+     * We then compare the values to find the common prefix length.
+     */
+    if (size_diff > 0) {
+        prefix_len = kmer2->k;
+        kmer1_value >>= 2 * size_diff;
+    } else if (size_diff < 0) {
+        prefix_len = kmer1->k;
+        kmer2_value >>= 2 * -size_diff;
+    } else {
+        prefix_len = kmer1->k;
+    }
+    uint64_t xor = kmer1_value ^ kmer2_value;
+    while (xor != 0) {                            // if prefix_len is 0, xor will be 0
+        xor >>= 2;
+        prefix_len--;
+    }
+    return prefix_len;
+}
+
+/**
+ * @brief Compare the n first nucleotides of two K-mers.
+ * 
+ * @param kmer1 The first K-mer.
+ * @param kmer2 The second K-mer.
+ * @param n The number of nucleotides to compare.
+ * @return The comparison result, -1 if kmer1 < kmer2, 0 if kmer1 == kmer2, 1 if kmer1 > kmer2.
+ */
+int compare_kmers(Kmer* kmer1, Kmer* kmer2, uint8_t n) {
+    Kmer* first_kmer1 = get_first_k_nucleotides(kmer1, n);
+    Kmer* first_kmer2 = get_first_k_nucleotides(kmer2, n);
+
+    int result = 0;
+    if (first_kmer1->value < first_kmer2->value) {
+        result = -1;
+    } else if (first_kmer1->value > first_kmer2->value) {
+        result = 1;
+    }
+    pfree(first_kmer1);
+    pfree(first_kmer2);
+    return result;
+}
+
+
 /* ************************************************************************** */
 
 /**

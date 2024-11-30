@@ -171,6 +171,46 @@ static Qkmer* qkmer_parse(const char* str) {
 	}
 	return make_qkmer_from_str(str, length);
 }
+
+
+/**
+ * @brief Get the first k nucleotides of a QK-mer.
+ * 
+ * @param qkmer The QK-mer.
+ * @param k The number of nucleotides to get.
+ * @return The QK-mer with the first k nucleotides.
+ */
+Qkmer* get_first_k_nucleotides_qkmer(Qkmer* qkmer, uint8_t k) {
+    if (k > qkmer->k) {
+        ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE), errmsg("k cannot be greater than the QK-mer size")));
+    }
+    Qkmer* first_qkmer = palloc0(sizeof(Qkmer));
+    first_qkmer->k = k;
+    first_qkmer->ac = qkmer->ac >> (2 * (qkmer->k - k));
+    first_qkmer->gt = qkmer->gt >> (2 * (qkmer->k - k));
+    return first_qkmer;
+}
+
+/**
+ * @brief Match a QK-mer with a K-mer.
+ * 
+ * @param qkmer The QK-mer.
+ * @param kmer The K-mer.
+ * @return true if the QK-mer matches the K-mer, false otherwise.
+ */
+bool qkmer_contains_internal(Qkmer* qkmer, Kmer* kmer) {
+    if (qkmer -> k != kmer -> k) {
+        return false;
+    }
+
+    Qkmer* qkmer_from_kmer = make_qkmer_from_kmer(kmer);
+    bool result = (qkmer_from_kmer -> ac & qkmer -> ac) == qkmer_from_kmer -> ac &&
+                  (qkmer_from_kmer -> gt & qkmer -> gt) == qkmer_from_kmer -> gt;
+    pfree(qkmer_from_kmer);
+    return result;
+}
+
+
 /* ************************************************************************** */
 
 /**
@@ -263,13 +303,8 @@ Datum qkmer_contains(PG_FUNCTION_ARGS) {
     Qkmer* qkmer = PG_GETARG_QKMER_P(0);
     Kmer* kmer = PG_GETARG_KMER_P(1);
     
-    if (qkmer -> k != kmer -> k) {
-        PG_RETURN_BOOL(false);
-    }
+    bool result = qkmer_contains_internal(qkmer, kmer);
 
-    Qkmer* qkmer_from_kmer = make_qkmer_from_kmer(kmer);
-    bool result = (qkmer_from_kmer -> ac & qkmer -> ac) == qkmer_from_kmer -> ac &&
-                  (qkmer_from_kmer -> gt & qkmer -> gt) == qkmer_from_kmer -> gt;
     PG_FREE_IF_COPY(qkmer, 0);
     PG_FREE_IF_COPY(kmer, 1);
     PG_RETURN_BOOL(result);
