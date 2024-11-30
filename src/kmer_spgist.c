@@ -514,7 +514,6 @@ kmer_spgist_inner_consistent(PG_FUNCTION_ARGS) {
         Kmer* first_k_nucleotides = get_first_k_nucleotides(reconstructed_value, in->level);
         reconstructed_kmer->value = first_k_nucleotides->value;
         pfree(first_k_nucleotides);
-        elog(INFO, "Reconstructing K-mer with first %d nucleotides: %s", in->level, kmer_value_to_string(reconstructed_kmer));
     }
     /* 
      * Prefix_kmer could be null, if we have no prefix, so we first check that it's not
@@ -523,8 +522,6 @@ kmer_spgist_inner_consistent(PG_FUNCTION_ARGS) {
     if (prefix_kmer && prefix_kmer->k) {
         reconstructed_kmer->value = (reconstructed_kmer->value << (2 * in->level)) | prefix_kmer->value;
     }
-
-    elog(INFO, "Entering loop with reconstructed_kmer->value: %s", kmer_value_to_string(reconstructed_kmer));
 
     /*
 	 * Scan the child nodes.  For each one, complete the reconstructed value
@@ -537,9 +534,7 @@ kmer_spgist_inner_consistent(PG_FUNCTION_ARGS) {
 	out->reconstructedValues = (Datum *) palloc(sizeof(Datum) * in->nNodes);
 	out->nNodes = 0;
     for (int i = 0; i < in->nNodes; i++) {
-        elog(INFO, "i: %d", i);
         int16 node_label = DatumGetInt16(in->nodeLabels[i]);
-        elog(INFO, "node_label: %d", node_label);
         Kmer* current_reconstructed_kmer_to_check = palloc0(sizeof(Kmer));
         *current_reconstructed_kmer_to_check = *reconstructed_kmer;
         bool result = true;
@@ -548,10 +543,8 @@ kmer_spgist_inner_consistent(PG_FUNCTION_ARGS) {
         } else {
             current_reconstructed_kmer_to_check->k = max_reconstruction_length;
             current_reconstructed_kmer_to_check->value = (current_reconstructed_kmer_to_check->value << 2) | node_label;
-            elog(INFO, "reconstructed_kmer->value: %s", kmer_value_to_string(current_reconstructed_kmer_to_check));
         }
         for (int j = 0; j < in->nkeys; j++) {
-            elog(INFO, "j: %d", j);
             StrategyNumber strategy = in->scankeys[j].sk_strategy;
             
             if (strategy == QKMER_MATCHING_STRATEGY_NUMBER) {
@@ -560,10 +553,7 @@ kmer_spgist_inner_consistent(PG_FUNCTION_ARGS) {
                 result = qkmer_contains_n(qkmer_in, current_reconstructed_kmer_to_check, Min(current_reconstructed_kmer_to_check->k, qkmer_in->k));
             } else {
                 Kmer* kmer_in = DatumGetKmerP(in->scankeys[j].sk_argument);
-                elog(INFO, "kmer_in->k: %d, reconstruction_length: %d", kmer_in->k, current_reconstructed_kmer_to_check->k);
-                elog(INFO, "kmer_in->value: %s, reconstructed_kmer->value: %s", kmer_value_to_string(kmer_in), kmer_value_to_string(current_reconstructed_kmer_to_check));
                 int compare_result = compare_kmers(kmer_in, current_reconstructed_kmer_to_check, Min(current_reconstructed_kmer_to_check->k, kmer_in->k));
-                elog(INFO, "compare_result: %d", compare_result);
                 switch (strategy) {
                     case EQUAL_STRATEGY_NUMBER:
                         if (compare_result != 0 || kmer_in->k < current_reconstructed_kmer_to_check->k) {
@@ -586,13 +576,9 @@ kmer_spgist_inner_consistent(PG_FUNCTION_ARGS) {
             }
         }
         if (result) {
-            elog(INFO, "Adding result reconstructed_kmer->value: %s", kmer_value_to_string(current_reconstructed_kmer_to_check));
             out->nodeNumbers[out->nNodes] = i;
             out->levelAdds[out->nNodes] = current_reconstructed_kmer_to_check->k - in->level;
             current_reconstructed_kmer_to_check->k = max_reconstruction_length;
-            elog(INFO, "it has length %d", current_reconstructed_kmer_to_check->k);
-            Datum reconstructed_kmer_datum = datumCopy(KmerPGetDatum(current_reconstructed_kmer_to_check), false, sizeof(Kmer));
-            elog(INFO, "reconstructed_kmer_datum: value: %s, k: %d", kmer_value_to_string(DatumGetKmerP(reconstructed_kmer_datum)), DatumGetKmerP(reconstructed_kmer_datum)->k);
             out->reconstructedValues[out->nNodes] = datumCopy(KmerPGetDatum(current_reconstructed_kmer_to_check), false, sizeof(Kmer));
             out->nNodes++;
         }
@@ -619,10 +605,9 @@ kmer_spgist_leaf_consistent(PG_FUNCTION_ARGS) {
     } else {
         full_kmer = palloc0(sizeof(Kmer));
         full_kmer->k = full_length;
-        full_kmer->value = (reconstructed_value->value << (2 * in->level)) | leaf_kmer->value; // Combine the reconstructed value with the leaf value
+        full_kmer->value = (reconstructed_value->value << (2 * leaf_kmer->k)) | leaf_kmer->value; // Combine the reconstructed value with the leaf value
         out->leafValue = KmerPGetDatum(full_kmer);
     }
-    elog(INFO, "Leaf consistent: full_kmer->value: %s", kmer_value_to_string(full_kmer));
 
     bool result = true;
     for (int j = 0; j < in->nkeys; j++) {
