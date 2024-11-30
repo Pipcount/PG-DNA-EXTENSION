@@ -430,10 +430,6 @@ Datum kmer_spgist_picksplit(PG_FUNCTION_ARGS) {
     spgPickSplitIn *in = (spgPickSplitIn *) PG_GETARG_POINTER(0);
     spgPickSplitOut *out = (spgPickSplitOut *) PG_GETARG_POINTER(1);
 
-    // for (int i = 0; i < in->nTuples; i++) {
-    //     Kmer *kmer = DatumGetKmerP(in->datums[i]);
-    //     elog(INFO, "kmer_spgist_picksplit: kmer->value: %s, kmer->k; %d", kmer_value_to_string(kmer), kmer->k);
-    // }
     uint8_t common_prefix_len = get_common_prefix_len_array(in->datums, in->nTuples);
 
     if (common_prefix_len == 0) {
@@ -569,7 +565,6 @@ kmer_spgist_inner_consistent(PG_FUNCTION_ARGS) {
                         ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE), errmsg("unrecognized strategy number: %d", strategy)));
                         break;
                 }
-                elog(INFO, "result: %d", result);
             }
             if (!result) {
                 break;
@@ -578,7 +573,6 @@ kmer_spgist_inner_consistent(PG_FUNCTION_ARGS) {
         if (result) {
             out->nodeNumbers[out->nNodes] = i;
             out->levelAdds[out->nNodes] = current_reconstructed_kmer_to_check->k - in->level;
-            current_reconstructed_kmer_to_check->k = max_reconstruction_length;
             out->reconstructedValues[out->nNodes] = datumCopy(KmerPGetDatum(current_reconstructed_kmer_to_check), false, sizeof(Kmer));
             out->nNodes++;
         }
@@ -608,7 +602,6 @@ kmer_spgist_leaf_consistent(PG_FUNCTION_ARGS) {
         full_kmer->value = (reconstructed_value->value << (2 * leaf_kmer->k)) | leaf_kmer->value; // Combine the reconstructed value with the leaf value
         out->leafValue = KmerPGetDatum(full_kmer);
     }
-
     bool result = true;
     for (int j = 0; j < in->nkeys; j++) {
         StrategyNumber strategy = in->scankeys[j].sk_strategy;
