@@ -1,8 +1,5 @@
 #include "dna.h"
 
-PG_MODULE_MAGIC;
-
-
 /**
  * @brief Structure used to store the state of the K-mer generator.
  */

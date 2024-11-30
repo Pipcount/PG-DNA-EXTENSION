@@ -1,6 +1,5 @@
 #include "kmer.h"
 
-PG_MODULE_MAGIC;
 
 /**
  * @brief Creates a K-mer from a string.

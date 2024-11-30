@@ -1,7 +1,5 @@
 #include "qkmer.h"
 
-PG_MODULE_MAGIC;
-
 /**
  * @brief LUT to convert a IUPAC nucleotide code to a 4-bit representation.
  * 

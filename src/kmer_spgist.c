@@ -4,7 +4,9 @@
 #include "utils/pg_locale.h"
 #include "utils/datum.h"
 
+#ifdef PG_MODULE_MAGIC
 PG_MODULE_MAGIC;
+#endif
 
 #define EQUAL_STRATEGY_NUMBER 1
 #define PREFIX_STRATEGY_NUMBER 2
@@ -24,7 +26,7 @@ typedef struct KmerNodePtr
  * @param kmer The K-mer to convert.
  * @return The string representation of the K-mer.
  */
-char* kmer_value_to_string(Kmer* kmer) {
+static char* kmer_value_to_string(Kmer* kmer) {
 	char str[32];
 	//! elog(INFO, "kmer value (kmer_value_to_string): %lu", kmer -> value);
 	for (uint8_t i = 0; i < kmer -> k; i++) {
@@ -44,7 +46,7 @@ char* kmer_value_to_string(Kmer* kmer) {
  * @param k The number of nucleotides to get.
  * @return The K-mer with the first k nucleotides.
  */
-Kmer* get_first_k_nucleotides(Kmer* kmer, uint8_t k) {
+static Kmer* get_first_k_nucleotides(Kmer* kmer, uint8_t k) {
     if (k > kmer->k) {
         ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE), errmsg("k cannot be greater than the K-mer size")));
     }
@@ -61,7 +63,7 @@ Kmer* get_first_k_nucleotides(Kmer* kmer, uint8_t k) {
  * @param k The number of nucleotides to get.
  * @return The QK-mer with the first k nucleotides.
  */
-Qkmer* get_first_k_nucleotides_qkmer(Qkmer* qkmer, uint8_t k) {
+static Qkmer* get_first_k_nucleotides_qkmer(Qkmer* qkmer, uint8_t k) {
     if (k > qkmer->k) {
         ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE), errmsg("k cannot be greater than the QK-mer size")));
     }
@@ -80,7 +82,7 @@ Qkmer* get_first_k_nucleotides_qkmer(Qkmer* qkmer, uint8_t k) {
  * @param k The number of nucleotides to get.
  * @return The K-mer with the last k nucleotides.
  */
-Kmer* get_last_k_nucleotides(Kmer* kmer, uint8_t k) {
+static Kmer* get_last_k_nucleotides(Kmer* kmer, uint8_t k) {
     Kmer* last_kmer = palloc0(sizeof(Kmer));
     last_kmer->k = k;
     last_kmer->value = kmer->value & ((1 << (2 * k)) - 1);
@@ -95,7 +97,7 @@ Kmer* get_last_k_nucleotides(Kmer* kmer, uint8_t k) {
  * @param kmer2 The second K-mer.
  * @return The common prefix length.
  */
-uint8_t get_common_prefix_len(Kmer* kmer1, Kmer* kmer2) {
+static uint8_t get_common_prefix_len(Kmer* kmer1, Kmer* kmer2) {
     uint64_t kmer1_value = kmer1->value; // Copy the value to avoid modifying the original
     uint64_t kmer2_value = kmer2->value; // Copy the value to avoid modifying the original
 
@@ -131,7 +133,7 @@ uint8_t get_common_prefix_len(Kmer* kmer1, Kmer* kmer2) {
  * @param nTuples The number of K-mers.
  * @return The common prefix length.
  */
-uint8_t get_common_prefix_len_array(Datum *datums, int nTuples) {
+static uint8_t get_common_prefix_len_array(Datum *datums, int nTuples) {
     Kmer* first_kmer = DatumGetKmerP(datums[0]);
     uint8_t common_prefix_len = first_kmer->k;
     for (int i = 1; i < nTuples && common_prefix_len > 0; i++) {
@@ -185,7 +187,7 @@ static bool search_nucleotide(Datum *nodeLabels, int nNodes, int16 c, int *i) {
  * @param n The number of nucleotides to compare.
  * @return The comparison result, -1 if kmer1 < kmer2, 0 if kmer1 == kmer2, 1 if kmer1 > kmer2.
  */
-int compare_kmers(Kmer* kmer1, Kmer* kmer2, uint8_t n) {
+static int compare_kmers(Kmer* kmer1, Kmer* kmer2, uint8_t n) {
     Kmer* first_kmer1 = get_first_k_nucleotides(kmer1, n);
     Kmer* first_kmer2 = get_first_k_nucleotides(kmer2, n);
 
@@ -249,7 +251,7 @@ static Qkmer* make_qkmer_from_kmer(Kmer* kmer) {
  * @param kmer The K-mer.
  * @return true if the QK-mer matches the K-mer, false otherwise.
  */
-bool qkmer_contains(Qkmer* qkmer, Kmer* kmer) {
+static bool qkmer_contains(Qkmer* qkmer, Kmer* kmer) {
     Qkmer* qkmer_from_kmer = make_qkmer_from_kmer(kmer);
 
     if (qkmer -> k != kmer -> k) {
@@ -270,7 +272,7 @@ bool qkmer_contains(Qkmer* qkmer, Kmer* kmer) {
  * @param n The number of nucleotides to compare.
  * @return true if the QK-mer matches the K-mer, false otherwise.
  */
-bool qkmer_contains_n(Qkmer* qkmer, Kmer* kmer, uint8_t n) {
+static bool qkmer_contains_n(Qkmer* qkmer, Kmer* kmer, uint8_t n) {
     Qkmer* first_qkmer = get_first_k_nucleotides_qkmer(qkmer, n);
     Kmer* first_kmer = get_first_k_nucleotides(kmer, n);
 

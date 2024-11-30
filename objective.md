@@ -8,7 +8,7 @@
 ---
 ## To do
 - [x] Kmer counting support / Grouping operations
-- [ ] Index SP-GiST trie-based
+- [x] Index SP-GiST trie-based
 - [ ] Test on a real dataset
 ---
 ## Additional
