@@ -264,7 +264,7 @@ class DataTypes(InteractiveScene):
         kmer_struct_text_wo_len.set_color(text_color)
         kmer_struct_text_wo_len.set_color_by_text("struct", BLUE_E)
         kmer_struct_text_wo_len.set_color_by_text("uint64_t", BLUE_E)
-        kmer_struct_text_wo_len.set_color_by_text("KMER", ORANGE)
+        kmer_struct_text_wo_len.set_color_by_text("Kmer", ORANGE)
 
         kmer_struct_text_with_len = Text(
             """
