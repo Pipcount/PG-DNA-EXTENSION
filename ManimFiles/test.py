@@ -1,3 +1,4 @@
+from idlelib.pyparse import trans
 from os import write
 from manimlib import *
 
@@ -30,9 +31,10 @@ class DataTypes(InteractiveScene):
         qkmer_header_text.to_edge(UP)
         encoding_text.to_edge(UP)
 
+        header_rect_pos = TOP - header_rect_size / 2 * UP
         self.play(
             TransformMatchingShapes(data_types_text, encoding_text),
-            header_rectangle.animate.set_height(header_rect_size, stretch=True).move_to(TOP - header_rect_size/2 * UP),
+            header_rectangle.animate.set_height(header_rect_size, stretch=True).move_to(header_rect_pos),
             run_time=1
         )
 
@@ -125,12 +127,12 @@ class DataTypes(InteractiveScene):
 
         self.wait(1)
 
-        header_rectangle = Rectangle(width=(FRAME_WIDTH - 1) * 0.4, height=1.5, color=BLACK)
+        dna_header_rectangle = Rectangle(width=(FRAME_WIDTH - 1) * 0.4, height=1.5, color=BLACK)
         data_rectangle = Rectangle(width=(FRAME_WIDTH - 1) * 0.6, height=1.5, color=BLACK)
 
-        data_rectangle.next_to(header_rectangle, RIGHT, buff=0.01)
+        data_rectangle.next_to(dna_header_rectangle, RIGHT, buff=0.01)
 
-        rectangle_group = VGroup(header_rectangle, data_rectangle)
+        rectangle_group = VGroup(dna_header_rectangle, data_rectangle)
         rectangle_group.move_to(ORIGIN + 2 * DOWN)
 
         header_rectangle_text = Text("Header (4 Bytes)", font_size=50, color=WHITE)
@@ -138,16 +140,16 @@ class DataTypes(InteractiveScene):
         header_rectangle_text.set_color(text_color)
         data_rectangle_text.set_color(text_color)
 
-        header_rectangle_text.move_to(header_rectangle.get_center())
+        header_rectangle_text.move_to(dna_header_rectangle.get_center())
         data_rectangle_text.move_to(data_rectangle.get_center())
 
-        self.play(Write(header_rectangle), Write(data_rectangle))
+        self.play(Write(dna_header_rectangle), Write(data_rectangle))
         self.play(Write(header_rectangle_text), Write(data_rectangle_text))
         data_rectangle_group = VGroup(data_rectangle_text, data_rectangle)
         data_rectangle_group.generate_target()
         data_rectangle_group.target.move_to(ORIGIN + 2 * DOWN)
 
-        header_group = VGroup(header_rectangle_text, header_rectangle)
+        header_group = VGroup(header_rectangle_text, dna_header_rectangle)
 
         self.play(
             FadeOut(header_group),
@@ -234,6 +236,9 @@ class DataTypes(InteractiveScene):
             Transform(last_char, updated_last_char)
         )
         self.play(FadeOut(scanning_rect))
+
+        translated_example_group = VGroup(first_byte_content, second_byte_group, last_byte_length_content_0,
+                                          first_byte_rect, second_byte_rect, last_byte_length_rect, data_rectangle)
 
         self.play(
             TransformMatchingStrings(dna_header_text, kmer_header_text),
@@ -387,3 +392,280 @@ class DataTypes(InteractiveScene):
             run_time=1
         )
 
+        functions_text = Text("Functions", font=font, font_size=title_text_size, t2w={"weight": BOLD})
+        functions_text.set_color(title_text_color)
+        functions_text.move_to(ORIGIN)
+
+        self.play(
+            FadeOut(length_functions_group, run_time=0.5),
+            TransformMatchingShapes(length_header_text, functions_text),
+            header_rectangle.animate.set_height(FRAME_HEIGHT, stretch=True).move_to(ORIGIN),
+            run_time=1
+        )
+        self.wait()
+
+        generate_kmers_header = Text(
+            """
+            Generate Kmers
+            """, font=font, font_size=title_text_size, t2w={"weight": BOLD}
+        )
+        generate_kmers_header.set_color(title_text_color)
+        generate_kmers_header.to_edge(UP)
+
+        self.play(
+            TransformMatchingShapes(functions_text, generate_kmers_header),
+            header_rectangle.animate.set_height(header_rect_size, stretch=True).move_to(header_rect_pos),
+            run_time=1
+        )
+
+        # Choses à dire:
+        # C'est une set returning function
+        # Donc dans le code C, il faut faire la structure typique pour une fonction de ce type
+        # On ne présente pas cette fonction
+        generate_kmers_sql = Text(
+            r"""
+            CREATE OR REPLACE FUNCTION generate_kmers(DNA, integer)
+            RETURNS SETOF kmer
+            """, font=font, font_size=40, t2w={"weight": BOLD}
+        )
+        generate_kmers_sql.set_color(text_color)
+        generate_kmers_sql.set_color_by_text("CREATE", PURPLE_E)
+        generate_kmers_sql.set_color_by_text("OR", PURPLE_E)
+        generate_kmers_sql.set_color_by_text("REPLACE", PURPLE_E)
+        generate_kmers_sql.set_color_by_text("RETURNS", PURPLE_E)
+        generate_kmers_sql.set_color_by_text("integer", BLUE_E)
+        generate_kmers_sql.set_color_by_text("FUNCTION", ORANGE)
+        generate_kmers_sql.set_color_by_text("SETOF", PURPLE_E)
+        generate_kmers_sql.move_to(middle_of_slide)
+
+        self.play(Write(generate_kmers_sql))
+
+        self.wait()
+        translated_example_group.move_to(middle_of_slide + UP)
+        dna_example_sequence.next_to(translated_example_group, UP, buff=0.5)
+        last_byte_length_rect.set_fill(ORANGE, 0.5)
+        self.play(
+            TransformMatchingShapes(generate_kmers_sql, dna_example_sequence),
+            FadeIn(translated_example_group),
+            run_time=2
+        )
+
+        byte_ptr = Text("byte pointer", font=font, font_size=40, t2w={"weight": BOLD})
+        nucleotide_ctr_text = Text("nucleotide counter:", font=font, font_size=40, t2w={"weight": BOLD})
+        nucleotide_ctr = Text("0", font=font, font_size=40, t2w={"weight": BOLD})
+        kmer_length_info = Text("kmer length: 4", font=font, font_size=40, t2w={"weight": BOLD})
+        kmer_length_info.set_color(text_color)
+
+        output_kmer = Text("Output: ", font=font, font_size=60, t2w={"weight": BOLD})
+        output_kmer.set_color(text_color)
+        output_kmer.set_stroke(text_color, 2)
+
+        byte_ptr_arrow = Arrow(DOWN, UP/3, color=text_color)
+
+        byte_ptr_group = VGroup(byte_ptr, byte_ptr_arrow)
+        nucleotide_ctr_group = VGroup(nucleotide_ctr_text, nucleotide_ctr)
+        byte_ptr_group.arrange(UP, buff=0.2)
+        nucleotide_ctr_group.arrange(RIGHT, buff=0.2)
+        byte_ptr_group.set_color(text_color)
+        info_group = VGroup(nucleotide_ctr_group, kmer_length_info)
+        info_group.arrange(DOWN, buff=0.2)
+        info_group.set_color(text_color)
+        kmer_length_info.align_to(nucleotide_ctr_text, LEFT)
+
+        byte_ptr_group.move_to(first_byte_content[0].get_center() + 3 * DOWN/ 2)
+        info_group.to_corner(DL)
+        output_kmer.next_to(info_group, RIGHT, buff=1.5)
+
+        self.play(Write(byte_ptr_group), Write(info_group), Write(output_kmer))
+
+        self.wait()
+
+        output_kmer_i = Text("ACGT", font=font, font_size=60, t2w={"weight": BOLD})
+        output_kmer_i.set_color(text_color)
+        output_kmer_i.set_stroke(text_color, 2)
+        output_kmer_i.next_to(output_kmer, RIGHT, buff=0.5)
+        self.play(
+            TransformFromCopy(first_byte_content[0:2], output_kmer_i[0]),
+            run_time = 1
+        )
+
+        new_ctr = Text("1", font=font, font_size=40, t2w={"weight": BOLD})
+        new_ctr.set_color(text_color)
+        new_ctr.move_to(nucleotide_ctr.get_center())
+        self.play(
+            Transform(nucleotide_ctr, new_ctr),
+            TransformFromCopy(first_byte_content[2:4], output_kmer_i[1]),
+            run_time=1
+        )
+
+        new_ctr = Text("2", font=font, font_size=40, t2w={"weight": BOLD})
+        new_ctr.set_color(text_color)
+        new_ctr.move_to(nucleotide_ctr.get_center())
+
+        self.play(
+            Transform(nucleotide_ctr, new_ctr),
+            TransformFromCopy(first_byte_content[4:6], output_kmer_i[2]),
+            run_time=1
+        )
+
+        new_ctr = Text("3", font=font, font_size=40, t2w={"weight": BOLD})
+        new_ctr.set_color(text_color)
+        new_ctr.move_to(nucleotide_ctr.get_center())
+
+        self.play(
+            Transform(nucleotide_ctr, new_ctr),
+            TransformFromCopy(first_byte_content[6:8], output_kmer_i[3]),
+            run_time=1
+        )
+
+        self.wait()
+
+        self.play(
+            FadeOutToPoint(output_kmer_i, output_kmer_i.get_center() + DOWN),
+        )
+
+        output_kmer_i = Text("CGTC", font=font, font_size=60, t2w={"weight": BOLD})
+        output_kmer_i.set_color(text_color)
+        output_kmer_i.set_stroke(text_color, 2)
+        output_kmer_i.next_to(output_kmer, RIGHT, buff=0.5)
+
+        new_ctr = Text("1", font=font, font_size=40, t2w={"weight": BOLD})
+        new_ctr.set_color(text_color)
+        new_ctr.move_to(nucleotide_ctr.get_center())
+
+        self.wait()
+
+        # Reset the counter
+        self.play(
+            Transform(nucleotide_ctr, new_ctr)
+        )
+
+        self.play(
+            TransformFromCopy(first_byte_content[2:4], output_kmer_i[0]),
+            run_time = 1
+        )
+
+        new_ctr = Text("2", font=font, font_size=40, t2w={"weight": BOLD})
+        new_ctr.set_color(text_color)
+        new_ctr.move_to(nucleotide_ctr.get_center())
+
+        self.play(
+            Transform(nucleotide_ctr, new_ctr),
+            TransformFromCopy(first_byte_content[4:6], output_kmer_i[1]),
+            run_time=1
+        )
+
+        new_ctr = Text("3", font=font, font_size=40, t2w={"weight": BOLD})
+        new_ctr.set_color(text_color)
+        new_ctr.move_to(nucleotide_ctr.get_center())
+
+        self.play(
+            Transform(nucleotide_ctr, new_ctr),
+            TransformFromCopy(first_byte_content[6:8], output_kmer_i[2]),
+            run_time=1
+        )
+
+        new_ctr = Text("0", font=font, font_size=40, t2w={"weight": BOLD})
+        new_ctr.set_color(text_color)
+        new_ctr.move_to(nucleotide_ctr.get_center())
+
+        self.wait()
+
+        self.play(
+            Transform(nucleotide_ctr, new_ctr),
+            byte_ptr_group.animate.move_to(second_byte_content[0].get_center() + 3 * DOWN/ 2),
+            run_time=1
+        )
+        self.play(
+            TransformFromCopy(second_byte_content[0:2], output_kmer_i[3]),
+            run_time=1
+        )
+
+        self.wait()
+
+        self.play(
+            FadeOutToPoint(output_kmer_i, output_kmer_i.get_center() + DOWN),
+        )
+
+        new_ctr = Text("2", font=font, font_size=40, t2w={"weight": BOLD})
+        new_ctr.set_color(text_color)
+        new_ctr.move_to(nucleotide_ctr.get_center())
+
+        output_kmer_i = Text("GTCA", font=font, font_size=60, t2w={"weight": BOLD})
+        output_kmer_i.set_color(text_color)
+        output_kmer_i.set_stroke(text_color, 2)
+        output_kmer_i.next_to(output_kmer, RIGHT, buff=0.5)
+
+        self.play(
+            Transform(nucleotide_ctr, new_ctr),
+            byte_ptr_group.animate.move_to(first_byte_content[0].get_center() + 3 * DOWN/ 2),
+            run_time=1
+        )
+
+        self.play(
+            TransformFromCopy(first_byte_content[4:6], output_kmer_i[0]),
+            run_time = 1
+        )
+
+        new_ctr = Text("3", font=font, font_size=40, t2w={"weight": BOLD})
+        new_ctr.set_color(text_color)
+        new_ctr.move_to(nucleotide_ctr.get_center())
+
+        self.play(
+            Transform(nucleotide_ctr, new_ctr),
+            TransformFromCopy(first_byte_content[6:8], output_kmer_i[1]),
+            run_time=1
+        )
+
+
+        new_ctr = Text("0", font=font, font_size=40, t2w={"weight": BOLD})
+        new_ctr.set_color(text_color)
+        new_ctr.move_to(nucleotide_ctr.get_center())
+        self.play(
+            Transform(nucleotide_ctr, new_ctr),
+            byte_ptr_group.animate.move_to(second_byte_content[0].get_center() + 3 * DOWN/ 2),
+            run_time=1
+        )
+
+        self.play(
+            TransformFromCopy(second_byte_content[0:2], output_kmer_i[2]),
+            run_time=1
+        )
+
+        new_ctr = Text("1", font=font, font_size=40, t2w={"weight": BOLD})
+        new_ctr.set_color(text_color)
+        new_ctr.move_to(nucleotide_ctr.get_center())
+
+        self.play(
+            Transform(nucleotide_ctr, new_ctr),
+            TransformFromCopy(second_byte_content[2:4], output_kmer_i[3]),
+            run_time=1
+        )
+
+        generated_kmers_example = Text("Generated Kmers", font=font, font_size=80, t2w={"weight": BOLD})
+        generated_kmers_example.set_color(text_color)
+        generated_kmers_example.set_stroke(text_color, 2)
+
+        output_kmers = Text("""
+        ACGT
+        CGTC
+        GTCA
+        """, font=font, font_size=60, t2w={"weight": BOLD})
+        output_kmers.set_color(text_color)
+
+        generated_kmers_group = VGroup(generated_kmers_example, output_kmers)
+        generated_kmers_group.arrange(DOWN, buff=0.5)
+        generated_kmers_group.move_to(middle_of_slide)
+
+        self.wait()
+
+        self.play(
+            FadeOut(translated_example_group),
+            FadeOut(byte_ptr_group),
+            FadeOut(info_group),
+            FadeOut(output_kmer),
+            FadeOut(output_kmer_i),
+            TransformFromCopy(dna_example_sequence, generated_kmers_group),
+            dna_example_sequence.animate.move_to(middle_of_slide + 2 * UP),
+            run_time=1
+        )
