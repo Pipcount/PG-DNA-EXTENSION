@@ -19,7 +19,7 @@
 - [ ] Change kmer startswith
 
 ## Presentation
-- [ ] Datatypes + justification + casts + length
+- [x] Datatypes + justification + casts + length
 - [ ] functions (equal, startswith, match, generate)
 - [ ] Kmer counting -> hashing
 - [ ] SP-GIST 

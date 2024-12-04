@@ -3,7 +3,7 @@ from os import write
 from manimlib import *
 
 
-class DataTypes(InteractiveScene):
+class KmeAnim(InteractiveScene):
     def construct(self) -> None:
         text_color = BLACK
         title_text_color = WHITE
@@ -11,6 +11,13 @@ class DataTypes(InteractiveScene):
         font = "Monospace"
         title_text_size = 100
         header_rect_color = "#032a3f"
+        bullet_point_text_size = 40
+
+        top_of_slide = TOP - header_rect_size * UP
+        bottom_of_slide = BOTTOM
+        middle_of_slide = (top_of_slide + bottom_of_slide) / 2
+        bullet_point_pos = top_of_slide + DOWN + 3 * LEFT
+
         header_rectangle = Rectangle(width=FRAME_WIDTH, height=FRAME_HEIGHT, color=header_rect_color, fill_color=header_rect_color)
         header_rectangle.set_fill(header_rect_color, 1)
         self.add(header_rectangle)
@@ -262,9 +269,6 @@ class DataTypes(InteractiveScene):
             } Kmer;
             """, font=font, font_size=50, t2w={"weight": BOLD}
         )
-        top_of_slide =  TOP - header_rect_size * UP
-        bottom_of_slide = BOTTOM
-        middle_of_slide = (top_of_slide + bottom_of_slide) / 2
 
         kmer_struct_text_wo_len.set_color(text_color)
         kmer_struct_text_wo_len.set_color_by_text("struct", BLUE_E)
@@ -669,3 +673,90 @@ class DataTypes(InteractiveScene):
             dna_example_sequence.animate.move_to(middle_of_slide + 2 * UP),
             run_time=1
         )
+
+        self.wait()
+
+        starts_with = Text("Starts with", font=font, font_size=title_text_size, t2w={"weight": BOLD})
+        starts_with.set_color(title_text_color)
+        starts_with.to_edge(UP)
+
+        self.play(
+            TransformMatchingShapes(generate_kmers_header, starts_with),
+            FadeOut(generated_kmers_group),
+            FadeOut(dna_example_sequence),
+            run_time=1
+        )
+
+        starts_with_kmer_example = Text(
+            """
+            Kmer: GATAGA
+            """, font=font, font_size=60, t2w={"weight": BOLD}
+        )
+        starts_with_kmer_example.set_color(text_color)
+
+        starts_with_prefix_example = Text(
+            """
+            Prefix: GAT
+            """, font=font, font_size=60, t2w={"weight": BOLD}
+        )
+        starts_with_prefix_example.set_color(text_color)
+
+        starts_with_example_group = VGroup(starts_with_kmer_example, starts_with_prefix_example)
+        starts_with_example_group.arrange(DOWN, buff=0.5)
+
+
+
+        starts_with_kmer_example_bit_representation = Text(
+            """
+            Kmer: 100011001000
+            """, font=font, font_size=60, t2w={"weight": BOLD}
+        )
+        starts_with_kmer_example_bit_representation.set_color(text_color)
+
+        starts_with_prefix_example_bit_representation = Text(
+            """
+            Prefix: 100011
+            """, font=font, font_size=60, t2w={"weight": BOLD}
+        )
+        starts_with_prefix_example_bit_representation.set_color(text_color)
+
+        starts_with_example_bit_representation_group = VGroup(starts_with_kmer_example_bit_representation, starts_with_prefix_example_bit_representation)
+        starts_with_example_bit_representation_group.arrange(DOWN, buff=0.5)
+        starts_with_example_bit_representation_group.move_to(middle_of_slide)
+        starts_with_prefix_example_bit_representation.align_to(starts_with_kmer_example_bit_representation, LEFT)
+
+        starts_with_example_group.align_to(starts_with_example_bit_representation_group, LEFT)
+        starts_with_example_group.align_to(starts_with_example_bit_representation_group, UP)
+        starts_with_prefix_example.align_to(starts_with_kmer_example, LEFT)
+
+        starts_with_bullet_points = Text(
+            """
+            • Shift the Kmer
+            • Compare Kmer with prefix
+            """, font=font, font_size=bullet_point_text_size, t2w={"weight": BOLD}
+        )
+        starts_with_bullet_points.set_color(text_color)
+        starts_with_bullet_points.move_to(bullet_point_pos)
+
+        self.play(Write(starts_with_bullet_points))
+
+        self.wait()
+        self.play(Write(starts_with_example_group))
+        self.wait()
+
+        self.play(
+            TransformMatchingShapes(starts_with_example_group, starts_with_example_bit_representation_group),
+            run_time=1
+        )
+        self.wait()
+        self.play(
+            FadeOut(starts_with_kmer_example_bit_representation[-6:]),
+            run_time=1
+        )
+        self.play(
+            starts_with_kmer_example_bit_representation[-12:-6].animate.set_color(GREEN_E),
+            starts_with_prefix_example_bit_representation[-6:].animate.set_color(GREEN_E),
+            run_time=1
+        )
+
+        self.wait()
