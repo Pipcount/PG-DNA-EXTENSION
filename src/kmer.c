@@ -314,7 +314,6 @@ PG_FUNCTION_INFO_V1(kmer_hash);
 Datum kmer_hash(PG_FUNCTION_ARGS) {
 	Kmer* kmer = PG_GETARG_KMER_P(0);
 
-	// DEBUT
 	uint64_t kmer_value = kmer->value << (kmer->k * 2);
 	uint64_t removed_bits = kmer->value >> (64 - kmer->k * 2);
 	uint64_t hash_input = kmer_value ^ removed_bits;
