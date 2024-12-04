@@ -302,7 +302,6 @@ Datum kmer_startswith(PG_FUNCTION_ARGS) {
 	PG_RETURN_BOOL(result);
 }
 
-
 /* Kmer Hash operators */
 
 /**
@@ -314,5 +313,13 @@ Datum kmer_startswith(PG_FUNCTION_ARGS) {
 PG_FUNCTION_INFO_V1(kmer_hash);
 Datum kmer_hash(PG_FUNCTION_ARGS) {
 	Kmer* kmer = PG_GETARG_KMER_P(0);
-	PG_RETURN_INT32(hash_any((unsigned char *) &kmer -> value, sizeof(kmer -> value)));
+
+	// DEBUT
+	uint64_t kmer_value = kmer->value << (kmer->k * 2);
+	uint64_t removed_bits = kmer->value >> (64 - kmer->k * 2);
+	uint64_t hash_input = kmer_value ^ removed_bits;
+
+	int32 hash = hash_any((unsigned char *) &hash_input, sizeof(hash_input));
+
+    PG_RETURN_INT32(hash);
 }
