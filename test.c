@@ -54,18 +54,17 @@ void print_binary(uint64_t value) {
 
 int main() {
     uint64_t kmer = 0b111100011011; // Encoded "TTACGT"
-    uint64_t ac, gt;
+    uint8_t k = 6;
 
-    separate_kmer(6, kmer, &ac, &gt);
-
-    printf("Input k-mer: ");
-    print_binary(kmer);
-
-    printf("AC:          ");
-    print_binary(ac);
-
-    printf("GT:          ");
-    print_binary(gt);
-
+	uint64_t complement = kmer ^ ((1 << k * 2) - 1);
+    print_binary(complement);
+    uint64_t reverse = 0;
+    for (int i = 0; i < k; i++) {
+        uint8_t byte = complement & 0b11;
+        reverse <<= 2;
+        reverse |= byte;
+        complement >>= 2;
+    }
+    print_binary(reverse);
     return 0;
 }

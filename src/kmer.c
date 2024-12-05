@@ -161,6 +161,29 @@ int compare_kmers(Kmer* kmer1, Kmer* kmer2, uint8_t n) {
     return result;
 }
 
+/**
+ * @brief Function to compute the canonical form of a K-mer.
+ * 
+ * @param kmer The K-mer to compute the canonical form of.
+ * @return The canonical form of the K-mer.
+ */
+Kmer* internal_kmer_canonical(Kmer* kmer) {
+	Kmer* canonical_kmer = palloc0(sizeof(Kmer));
+	canonical_kmer->k = kmer->k;
+	canonical_kmer->value = 0;
+
+	uint64_t complement = kmer->value ^ ((1 << kmer->k * 2) - 1);
+	uint64_t reverse_complement = 0;
+    for (int i = 0; i < kmer->k; i++) {
+        uint8_t byte = complement & 0b11;
+        reverse_complement <<= 2;
+        reverse_complement |= byte;
+        complement >>= 2;
+    }
+	canonical_kmer->value = Min(kmer->value, reverse_complement);
+	return canonical_kmer;
+}
+
 
 /* ************************************************************************** */
 
@@ -266,6 +289,20 @@ Datum kmer_length(PG_FUNCTION_ARGS) {
 	uint8_t length = kmer -> k;
 	PG_FREE_IF_COPY(kmer, 0);
 	PG_RETURN_CHAR(length);
+}
+
+/**
+ * @brief Postgres function to compute the canonical form of a K-mer.
+ * 
+ * @param kmer The K-mer to compute the canonical form of.
+ * @return The canonical form of the K-mer.
+ */
+PG_FUNCTION_INFO_V1(kmer_canonical);
+Datum kmer_canonical(PG_FUNCTION_ARGS) {
+	Kmer* kmer = PG_GETARG_KMER_P(0);
+	Kmer* canonical_kmer = internal_kmer_canonical(kmer);
+	PG_FREE_IF_COPY(kmer, 0);
+	PG_RETURN_KMER_P(canonical_kmer);
 }
 
 /**

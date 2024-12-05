@@ -47,6 +47,11 @@ RETURNS integer
 AS '$libdir/kmea', 'kmer_length'
 LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
+CREATE OR REPLACE FUNCTION canonical(kmer)
+RETURNS kmer
+AS '$libdir/kmea', 'kmer_canonical'
+LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
 -- OPERATORS
 CREATE OR REPLACE FUNCTION equals(kmer, kmer)
 RETURNS boolean

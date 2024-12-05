@@ -66,6 +66,7 @@ from generate_kmers('ACTGACTG', 4) as k(kmer)
 group by k.kmer
 order by count(*) desc;
 
+
 with mykmers as (
     select k.kmer, count(*)
     from generate_kmers('ACTGACTG', 4) as k(kmer)
@@ -73,7 +74,6 @@ with mykmers as (
 )
 select sum(count) as "Total kmers", count(*) as "Distinct kmers", count(*) filter (where count = 1) as "Unique kmers"
 from mykmers;
-
 
 
 -- Create the table
@@ -102,3 +102,19 @@ ANALYSE large_table;
 
 EXPLAIN ANALYSE SELECT COUNT(*) FROM large_table where 'TCATCTA' = kmer;
 SELECT * FROM large_table where 'TCATCTA' = kmer;
+
+
+
+select canonical(kmer), count(*)
+from generate_kmers('ATCGATCAC', 3) as k(kmer)
+group by canonical(kmer)
+order by count(*) desc;
+
+
+with mykmers as (
+    select canonical(kmer), count(*)
+    from generate_kmers('ATCGATCAC', 3) as k(kmer)
+    group by canonical(kmer)
+)
+select sum(count) as "Total kmers", count(*) as "Distinct kmers", count(*) filter (where count = 1) as "Unique kmers"
+from mykmers;
