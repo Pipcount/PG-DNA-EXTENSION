@@ -248,7 +248,14 @@ Datum qkmer_out(PG_FUNCTION_ARGS) {
  */
 PG_FUNCTION_INFO_V1(qkmer_send);
 Datum qkmer_send(PG_FUNCTION_ARGS) {
-
+    Qkmer* qkmer = PG_GETARG_QKMER_P(0);
+    StringInfoData buf;
+    pq_begintypsend(&buf);
+    pq_sendint64(&buf, qkmer -> ac);
+    pq_sendint64(&buf, qkmer -> gt);
+    pq_sendint8(&buf, qkmer -> k);
+    PG_FREE_IF_COPY(qkmer, 0);
+    PG_RETURN_BYTEA_P(pq_endtypsend(&buf));
 }
 
 /**
@@ -259,7 +266,12 @@ Datum qkmer_send(PG_FUNCTION_ARGS) {
  */
 PG_FUNCTION_INFO_V1(qkmer_recv);
 Datum qkmer_recv(PG_FUNCTION_ARGS) {
-
+    StringInfo buf = (StringInfo) PG_GETARG_POINTER(0);
+    Qkmer* qkmer = palloc0(sizeof(Qkmer));
+    qkmer -> ac = pq_getmsgint64(buf);
+    qkmer -> gt = pq_getmsgint64(buf);
+    qkmer -> k = pq_getmsgint(buf, 8);
+    PG_RETURN_QKMER_P(qkmer);
 }
 
 /**
