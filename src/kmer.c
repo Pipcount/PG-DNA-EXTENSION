@@ -99,7 +99,7 @@ Kmer* get_first_k_nucleotides(Kmer* kmer, uint8_t k) {
 Kmer* get_last_k_nucleotides(Kmer* kmer, uint8_t k) {
     Kmer* last_kmer = palloc0(sizeof(Kmer));
     last_kmer->k = k;
-    last_kmer->value = kmer->value & ((1 << (2 * k)) - 1);
+    last_kmer->value = kmer->value & ((1ULL << (2 * k)) - 1);
     return last_kmer;
 }
 
@@ -172,7 +172,7 @@ Kmer* internal_kmer_canonical(Kmer* kmer) {
 	canonical_kmer->k = kmer->k;
 	canonical_kmer->value = 0;
 
-	uint64_t complement = kmer->value ^ ((1 << kmer->k * 2) - 1);
+	uint64_t complement = kmer->value ^ ((1ULL << kmer->k * 2) - 1);
 	uint64_t reverse_complement = 0;
     for (int i = 0; i < kmer->k; i++) {
         uint8_t byte = complement & 0b11;

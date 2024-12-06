@@ -56,7 +56,7 @@ int main() {
     uint64_t kmer = 0b111100011011; // Encoded "TTACGT"
     uint8_t k = 6;
 
-	uint64_t complement = kmer ^ ((1 << k * 2) - 1);
+	uint64_t complement = kmer ^ ((1ULL << k * 2) - 1);
     print_binary(complement);
     uint64_t reverse = 0;
     for (int i = 0; i < k; i++) {
