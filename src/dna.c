@@ -289,7 +289,12 @@ Datum dna_generate_kmers(PG_FUNCTION_ARGS) {
         KmerGeneratorState *state = (KmerGeneratorState *) funcctx->user_fctx;
 
         DNA* dna = PG_GETARG_BYTEA_P(0);
+        // elog(INFO, "dna %s", dna_to_string(dna));
         state->kmer_length = (uint8_t) PG_GETARG_UINT16(1);
+        if (get_dna_sequence_length(dna) < state->kmer_length) {
+            // Return an empty set if the kmer length is greater than the DNA sequence length
+            SRF_RETURN_DONE(funcctx);
+        }
         init_kmer_generator_state(state, dna, funcctx);
 
         MemoryContextSwitchTo(oldcontext);

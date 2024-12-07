@@ -68,7 +68,7 @@ bool internal_kmer_startswith(Kmer* kmer, Kmer* prefix) {
 	if (kmer -> k < prefix -> k) {
 		return false;
 	}
-	uint64_t extracted_from_kmer = kmer -> value >> (kmer -> k - prefix -> k) * 2;
+	uint64_t extracted_from_kmer = kmer -> value >> ((kmer -> k - prefix -> k) * 2);
 	return extracted_from_kmer == prefix -> value;
 }
 

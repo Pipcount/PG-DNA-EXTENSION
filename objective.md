@@ -9,18 +9,19 @@
 - [x] Index SP-GiST trie-based
 ---
 ## To do
-- [ ] Test on a real dataset
+- [x] Test on a real dataset
 - [ ] Presentation
+- [ ] static for kmer_val_to_string
 ---
 ## Additional
 - [x] Improve Qkmer matching
 - [x] Link header files correctly so we don't have to redefine every function
 - [ ] Test qkmer matching against string implementation
-- [ ] Change kmer startswith
+
 
 ## Presentation
 - [x] Datatypes + justification + casts + length
-- [ ] functions (equal, startswith, match, generate)
-- [ ] Kmer counting -> hashing
-- [ ] SP-GIST 
-- [ ] Demo on how a request works under the hood 
+- [x] functions (equal, startswith, match, generate)
+- [x] Kmer counting -> hashing
+- [x] SP-GIST 
+- [ ] Demo on how a request works under the hood

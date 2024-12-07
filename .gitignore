@@ -56,3 +56,6 @@ dkms.conf
 .idea/
 
 test
+
+*.tsv
+*.fasta
