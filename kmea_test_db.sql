@@ -10,10 +10,7 @@ CREATE TABLE kmers(id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, kmer kme
 CREATE TABLE DNAs(id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, dna DNA);
 CREATE TABLE qkmers(id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, qkmer qkmer);
 
-COPY DNAs (dna)
-FROM '/mnt/c/Users/theod/OneDrive/Documents/ULB/Ma1/INFOH417-DatabaseSystemsArchitecture/Projet/PG-DNA-EXTENSION/filtered_input.tsv'
-DELIMITER E'\t' --Indique que le délimiteur est une tabulation (\t), qui est couramment utilisée dans les fichiers TSV (Tab-Separated Values).
-CSV;    --or TSV
+\copy DNAs (dna) FROM 'filtered_input.tsv' DELIMITER E'\t' CSV;
 
 --SELECT * FROM DNAs;
 SELECT COUNT(*) FROM DNAs;  --Ok with test "wc -l filtered_input.tsv"
@@ -41,3 +38,25 @@ SELECT * FROM kmers WHERE kmer ^@ 'ACGT';   --Ok because we have a kmer 'ACGTT' 
 select COUNT(kmer) from kmers WHERE length(kmer)=5; --OK length of kmer = 5
 
 select kmer as "Matches ACGNW" from kmers where 'ACGNW' @> kmer;    --OK because we see kmer 'ACGTT'
+
+
+-- Create the table
+CREATE TABLE large_table(
+    id serial primary key, 
+    kmer kmer
+);
+
+INSERT INTO large_table(kmer)
+SELECT k.kmer
+from generate_series(1, 200) as i, generate_kmers((SELECT dna FROM DNAs WHERE id = i), 5) as k(kmer);
+
+
+create index large_table_kmer_idx on large_table using spgist(kmer spgist_kmer_ops);
+
+SET enable_seqscan = on;
+-- EXPLAIN ANALYSE SELECT count(*) FROM large_table where kmer ^@ 'AC';
+SELECT count(*) FROM large_table where kmer ^@ 'AC';
+SET enable_seqscan = off;
+
+-- EXPLAIN ANALYSE SELECT count(*) FROM large_table where kmer ^@ 'AC';
+SELECT count(*) FROM large_table where kmer ^@ 'AC';

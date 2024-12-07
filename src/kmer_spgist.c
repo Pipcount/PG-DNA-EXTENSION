@@ -141,7 +141,7 @@ kmer_spgist_choose(PG_FUNCTION_ARGS)
         Kmer* remaining_kmer_in = get_last_k_nucleotides(kmer_in, kmer_in->k - in->level);
 
         // common prefix length between the prefix K-mer and the indexed K-mer
-        common_prefix_len = get_common_prefix_len(remaining_kmer_in, kmer_in);
+        common_prefix_len = get_common_prefix_len(remaining_kmer_in, prefix_kmer);
 
         if (common_prefix_len == prefix_kmer->k) {
             if (common_prefix_len == kmer_in->k) {
@@ -279,7 +279,6 @@ Datum kmer_spgist_picksplit(PG_FUNCTION_ARGS) {
         out->leafTupleDatums[nodes[i].position] = leaf_datum;
         out->mapTuplesToNodes[nodes[i].position] = out->nNodes - 1;
     }
-
     PG_RETURN_VOID();
 }
 
