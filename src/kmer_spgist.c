@@ -286,10 +286,6 @@ Datum kmer_spgist_picksplit(PG_FUNCTION_ARGS) {
 PG_FUNCTION_INFO_V1(kmer_spgist_inner_consistent);
 Datum
 kmer_spgist_inner_consistent(PG_FUNCTION_ARGS) {
-
-    static int counter = 0;
-    counter++;
-
     spgInnerConsistentIn *in = (spgInnerConsistentIn *) PG_GETARG_POINTER(0);
 	spgInnerConsistentOut *out = (spgInnerConsistentOut *) PG_GETARG_POINTER(1);
     Kmer* prefix_kmer = NULL;
@@ -317,7 +313,7 @@ kmer_spgist_inner_consistent(PG_FUNCTION_ARGS) {
      * Then, if we have a prefix, we need to add it to the reconstructed K-mer
      */
     if (prefix_kmer && prefix_kmer->k) {
-        reconstructed_kmer->value = (reconstructed_kmer->value << (2 * in->level)) | prefix_kmer->value;
+        reconstructed_kmer->value = (reconstructed_kmer->value << (2 * prefix_kmer->k)) | prefix_kmer->value;
     }
 
     /*
@@ -359,9 +355,6 @@ kmer_spgist_inner_consistent(PG_FUNCTION_ARGS) {
                         break;
                     case PREFIX_STRATEGY_NUMBER:
                         if (compare_result != 0) {
-                            // elog(INFO, "Cmp false for kmer %s and %s", kmer_value_to_string(kmer_in), kmer_value_to_string(current_reconstructed_kmer_to_check));
-                            // elog(INFO, "hello %d", reconstructed_kmer->k);
-                            // elog(INFO, "LEVEL %d", in->level);
                             result = false;
                         }
                         break;
@@ -387,8 +380,6 @@ kmer_spgist_inner_consistent(PG_FUNCTION_ARGS) {
 PG_FUNCTION_INFO_V1(kmer_spgist_leaf_consistent);
 Datum
 kmer_spgist_leaf_consistent(PG_FUNCTION_ARGS) {
-    static int counter = 0;
-    counter++;
     spgLeafConsistentIn *in = (spgLeafConsistentIn *) PG_GETARG_POINTER(0);
 	spgLeafConsistentOut *out = (spgLeafConsistentOut *) PG_GETARG_POINTER(1);
 
@@ -397,7 +388,6 @@ kmer_spgist_leaf_consistent(PG_FUNCTION_ARGS) {
 
     Kmer* leaf_kmer = DatumGetKmerP(in->leafDatum);
     Kmer* reconstructed_value = DatumGetKmerP(in->reconstructedValue);
-    if (counter % 54000 == 0) elog(INFO, "Ct %d", counter);
 
     int full_length = in->level + leaf_kmer->k;        // Full length of the K-mer
     if (leaf_kmer->k == 0 && in->level > 0) {

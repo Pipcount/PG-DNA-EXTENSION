@@ -45,7 +45,7 @@ static Kmer* kmer_parse(const char* str) {
  * @param kmer The K-mer to convert.
  * @return The string representation of the K-mer.
  */
-char* kmer_value_to_string(Kmer* kmer) {
+static char* kmer_value_to_string(Kmer* kmer) {
 	char str[32];
 	//! elog(INFO, "kmer value (kmer_value_to_string): %lu", kmer -> value);
 	for (uint8_t i = 0; i < kmer -> k; i++) {

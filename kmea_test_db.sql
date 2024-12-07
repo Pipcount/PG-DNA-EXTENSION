@@ -13,41 +13,35 @@ CREATE TABLE qkmers(id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, qkmer q
 
 \copy DNAs (dna) FROM 'filtered_input.tsv' DELIMITER E'\t' CSV;
 
--- --SELECT * FROM DNAs;
--- SELECT COUNT(*) FROM DNAs;  --Ok with test "wc -l filtered_input.tsv"
+--SELECT * FROM DNAs;
+SELECT COUNT(*) FROM DNAs;  --Ok with test "wc -l filtered_input.tsv"
 
--- SELECT id, length(dna) AS sequence_length FROM DNAs WHERE id <= 5;  --OK with check on fichier.fasta. We see we deleted sequence 4 beacause contained a N
-
-
--- SELECT COUNT(k.kmer) 
--- FROM generate_kmers((SELECT dna FROM DNAs WHERE id = 1), 5) AS k(kmer);
--- --Ok because Nb Kmer = L-k+1 | L = length of DNA sequence | k = length of kmer
--- -- Nb Kmer = 177-5+1 = 173
+SELECT id, length(dna) AS sequence_length FROM DNAs WHERE id <= 5;  --OK with check on fichier.fasta. We see we deleted sequence 4 beacause contained a N
 
 
--- --INSERT INTO kmers (kmer)
--- INSERT INTO kmers (kmer)
--- SELECT k.kmer
--- FROM generate_kmers((SELECT dna FROM DNAs WHERE id = 1), 5) AS k(kmer);
+SELECT COUNT(k.kmer) 
+FROM generate_kmers((SELECT dna FROM DNAs WHERE id = 1), 5) AS k(kmer);
+--Ok because Nb Kmer = L-k+1 | L = length of DNA sequence | k = length of kmer
+-- Nb Kmer = 177-5+1 = 173
 
--- SELECT * FROM kmers WHERE id <= 5;
--- SELECT * FROM kmers WHERE equals('ACGTT', kmer);
--- SELECT * FROM kmers WHERE kmer = 'ACGTA';   
--- SELECT * FROM kmers WHERE kmer ^@ 'ACGTA';  
--- SELECT * FROM kmers WHERE kmer ^@ 'ACGT';   --Ok because we have a kmer 'ACGTT' in kmers table
 
--- select COUNT(kmer) from kmers WHERE length(kmer)=5; --OK length of kmer = 5
+--INSERT INTO kmers (kmer)
+INSERT INTO kmers (kmer)
+SELECT k.kmer
+FROM generate_kmers((SELECT dna FROM DNAs WHERE id = 1), 5) AS k(kmer);
 
--- select kmer as "Matches ACGNW" from kmers where 'ACGNW' @> kmer;    --OK because we see kmer 'ACGTT'
+SELECT * FROM kmers WHERE id <= 5;
+SELECT * FROM kmers WHERE equals('ACGTT', kmer);
+SELECT * FROM kmers WHERE kmer = 'ACGTA';   
+SELECT * FROM kmers WHERE kmer ^@ 'ACGTA';  
+SELECT * FROM kmers WHERE kmer ^@ 'ACGT';   --Ok because we have a kmer 'ACGTT' in kmers table
+
+select COUNT(kmer) from kmers WHERE length(kmer)=5; --OK length of kmer = 5
+
+select kmer as "Matches ACGNW" from kmers where 'ACGNW' @> kmer;    --OK because we see kmer 'ACGTT'
 
 
 select sum(length(dna)) as "THE BIG SUM" from DNAs;
-
-
--- select * from generate_kmers('ATCG', 5);
-
--- select * from DNAs
--- where length(dna) < 5;
 
 -- Create the table
 CREATE TABLE large_table(
@@ -67,18 +61,13 @@ select dna from DNAs where id <= 10000;
 
 INSERT INTO large_table(kmer)
 SELECT k.kmer
-from smol_table, LATERAL generate_kmers(dna, 18) as k(kmer);
+from smol_table, LATERAL generate_kmers(dna, 30) as k(kmer);
 
 
 
 create index large_table_kmer_idx on large_table using spgist(kmer spgist_kmer_ops);
 
 SET enable_seqscan = on;
--- EXPLAIN ANALYSE SELECT count(*) FROM large_table where kmer ^@ 'AC';
-SELECT count(*) FROM large_table where 'ACNNNNNNNNNNNNNNNN'@> kmer;
 SELECT count(*) FROM large_table where kmer ^@ 'AC';
 SET enable_seqscan = off;
-
--- EXPLAIN ANALYSE SELECT count(*) FROM large_table where kmer ^@ 'AC';
--- SELECT count(*) FROM large_table where 'ACNNNNNNNNNNNNNNNN' @> kmer;
 SELECT count(*) FROM large_table where kmer ^@ 'AC';
