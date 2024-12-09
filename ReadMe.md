@@ -1,9 +1,9 @@
-# KMEA extension
+# KMEA
 > [!NOTE]
 > This is an academic project, the instructions can be found under the doc directory (or directly [here](./doc/INFOH417%20DBSA%20–%20Project%2024-25.pdf))
 
 
-The KMEA extension is a PostgreSQL extension that supports various DNA data types, along with some operators.
+KMEA[^1] is a PostgreSQL extension that supports various DNA data types, along with some operators.
 ## Supported data types
 - DNA sequences
 - Kmers
@@ -21,12 +21,11 @@ The KMEA extension is a PostgreSQL extension that supports various DNA data type
 - SP-GiST index for kmers
 
 
-
-
-
+[^1]: Kmer Extension for Analysis
 ---
+
 # How to setup
-> [!WARNING]
+> [!IMPORTANT]
 > Make sure you have the following installed:
 >   - PostgreSQL 16
 >   - PostgreSQL server dev 16
