@@ -196,9 +196,9 @@ AS '$libdir/kmea', 'qkmer_length'
 LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
 
--- ---------------- --
--- Kmer Hash index  --
--- ---------------- --
+-- ------------------ --
+-- Kmer Hash opclass  --
+-- ------------------ --
 
 CREATE OR REPLACE FUNCTION kmer_hash(kmer)
 RETURNS integer

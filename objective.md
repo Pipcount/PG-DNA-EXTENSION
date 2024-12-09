@@ -10,8 +10,7 @@
 ---
 ## To do
 - [x] Test on a real dataset
-- [ ] Presentation
-- [ ] static for kmer_val_to_string
+- [x] Presentation
 ---
 ## Additional
 - [x] Improve Qkmer matching

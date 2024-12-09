@@ -24,8 +24,6 @@ FROM generate_kmers((SELECT dna FROM DNAs WHERE id = 1), 5) AS k(kmer);
 --Ok because Nb Kmer = L-k+1 | L = length of DNA sequence | k = length of kmer
 -- Nb Kmer = 177-5+1 = 173
 
-
---INSERT INTO kmers (kmer)
 INSERT INTO kmers (kmer)
 SELECT k.kmer
 FROM generate_kmers((SELECT dna FROM DNAs WHERE id = 1), 5) AS k(kmer);
@@ -40,8 +38,7 @@ select COUNT(kmer) from kmers WHERE length(kmer)=5; --OK length of kmer = 5
 
 select kmer as "Matches ACGNW" from kmers where 'ACGNW' @> kmer;    --OK because we see kmer 'ACGTT'
 
-
-select sum(length(dna)) as "THE BIG SUM" from DNAs;
+select sum(length(dna)) as "Total nucleotide count" from DNAs;
 
 -- Create the table
 CREATE TABLE large_table(
@@ -56,18 +53,17 @@ CREATE TABLE smol_table(
 );
 
 insert into smol_table (dna)
-select dna from DNAs where id <= 10000;
-
+select dna from DNAs where id <= 100000;    -- We limit to 100000 because doing it on all DNAs is too long for the presentation
 
 INSERT INTO large_table(kmer)
 SELECT k.kmer
 from smol_table, LATERAL generate_kmers(dna, 30) as k(kmer);
 
-
-
 create index large_table_kmer_idx on large_table using spgist(kmer spgist_kmer_ops);
 
 SET enable_seqscan = on;
-SELECT count(*) FROM large_table where kmer ^@ 'AC';
+EXPLAIN ANALYZE SELECT count(*) FROM large_table where kmer ^@ 'ACTGCA';        -- 143ms
+SELECT count(*) FROM large_table where kmer ^@ 'ACTGCA';
 SET enable_seqscan = off;
-SELECT count(*) FROM large_table where kmer ^@ 'AC';
+EXPLAIN ANALYZE SELECT count(*) FROM large_table where kmer ^@ 'ACTGCA';        -- 3.5ms
+SELECT count(*) FROM large_table where kmer ^@ 'ACTGCA';
