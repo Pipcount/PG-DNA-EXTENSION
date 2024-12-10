@@ -29,27 +29,23 @@ KMEA[^1] is a PostgreSQL extension that supports various DNA data types, along w
 > Make sure you have the following installed:
 >   - PostgreSQL 16
 >   - PostgreSQL server dev 16
-1. Create a database in PostgreSQL
-```shell
-createdb kmea
-```
-2. Make the extension:
+
+Make the extension with the following commands
 ```shell
 make
 sudo make install
 ```
-
-3. Create the extension:
-```shell
-psql kmea
-```
 ---
 # Testing features
 You can either create the extension and test by yourself
+```shell
+createdb kmea
+psql kmea
+```
 ```sql
 create extension kmea;
 ```
 Or launch the [kmea test db file](kmea_test_db.sql)
-```sql
-\i kmea_test_db.sql
+```shell
+psql -d postgres -f kmea_test_db.sql
 ```

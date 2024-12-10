@@ -167,7 +167,7 @@ int compare_kmers(Kmer* kmer1, Kmer* kmer2, uint8_t n) {
  * @param kmer The K-mer to compute the canonical form of.
  * @return The canonical form of the K-mer.
  */
-Kmer* internal_kmer_canonical(Kmer* kmer) {
+static Kmer* internal_kmer_canonical(Kmer* kmer) {
 	Kmer* canonical_kmer = palloc0(sizeof(Kmer));
 	canonical_kmer->k = kmer->k;
 	canonical_kmer->value = 0;
@@ -331,6 +331,23 @@ Datum kmer_eq(PG_FUNCTION_ARGS) {
  */
 PG_FUNCTION_INFO_V1(kmer_startswith);
 Datum kmer_startswith(PG_FUNCTION_ARGS) {
+	Kmer *prefix = PG_GETARG_KMER_P(0);
+	Kmer *kmer = PG_GETARG_KMER_P(1);
+	bool result = internal_kmer_startswith(kmer, prefix);
+	PG_FREE_IF_COPY(prefix, 0);
+	PG_FREE_IF_COPY(kmer, 1);
+	PG_RETURN_BOOL(result);
+}
+
+/**
+ * @brief Postgres function to check if a K-mer starts with a prefix.
+ * 
+ * @param prefix The prefix to check.
+ * @param kmer The K-mer to check.
+ * @return True if the K-mer starts with the prefix, false otherwise.
+ */
+PG_FUNCTION_INFO_V1(kmer_startswith_inv);
+Datum kmer_startswith_inv(PG_FUNCTION_ARGS) {
 	Kmer *kmer = PG_GETARG_KMER_P(0);
 	Kmer *prefix = PG_GETARG_KMER_P(1);
 	bool result = internal_kmer_startswith(kmer, prefix);

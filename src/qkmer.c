@@ -131,12 +131,12 @@ static Qkmer* make_qkmer_from_kmer(Kmer* kmer) {
     // Isolate T (11):
     uint64_t t_odd = kmer->value & odd_position_pair_mask;
     uint64_t t_even = kmer->value & even_position_pair_mask;
-    uint64_t t = t_odd & (t_odd >> 1) | t_even & (t_even >> 1);
+    uint64_t t = (t_odd & (t_odd >> 1)) | (t_even & (t_even >> 1));
 
     // Isolate A (00): 
     uint64_t a_odd = ~kmer->value & odd_position_pair_mask; 
     uint64_t a_even = ~kmer->value & even_position_pair_mask;   
-    uint64_t a = a_odd & (a_odd >> 1) | a_even & (a_even >> 1);
+    uint64_t a = (a_odd & (a_odd >> 1)) | (a_even & (a_even >> 1));
     a = a << 1;                                                     // to have 10 instead of 01
 
     // Isolate C (01):

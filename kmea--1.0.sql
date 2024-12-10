@@ -65,13 +65,18 @@ CREATE OPERATOR = (
 	COMMUTATOR = =
 );
 
-CREATE OR REPLACE FUNCTION kmer_startswith(kmer, kmer)
+CREATE OR REPLACE FUNCTION startswith(prefix kmer, kmer kmer)
 RETURNS boolean
 AS '$libdir/kmea', 'kmer_startswith'
 LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
+CREATE OR REPLACE FUNCTION startswith_inv(kmer kmer, prefix kmer)
+RETURNS boolean
+AS '$libdir/kmea', 'kmer_startswith_inv'
+LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
 CREATE OPERATOR ^@ (
-	PROCEDURE = kmer_startswith,
+	PROCEDURE = startswith_inv,
 	LEFTARG = kmer,
 	RIGHTARG = kmer
 );
