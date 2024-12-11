@@ -104,6 +104,21 @@ SET
 (1 row)
 
 SET
+                                                                 QUERY PLAN                                                                 
+--------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=2001633.30..2001633.31 rows=1 width=8) (actual time=15.995..15.995 rows=1 loops=1)
+   ->  Index Only Scan using kmer_idx on kmers  (cost=0.42..1885306.69 rows=46530644 width=0) (actual time=0.529..7.096 rows=39897 loops=1)
+         Index Cond: (kmer ^@ 'ACTGCA'::kmer)
+         Heap Fetches: 0
+ Planning Time: 0.044 ms
+ JIT:
+   Functions: 3
+   Options: Inlining true, Optimization true, Expressions true, Deforming true
+   Timing: Generation 0.182 ms, Inlining 1.469 ms, Optimization 2.983 ms, Emission 3.533 ms, Total 8.166 ms
+ Execution Time: 16.251 ms
+(10 rows)
+
+SET
  Amount that starts with ACTGCA using INDEX SCAN 
 -------------------------------------------------
                                            39897
