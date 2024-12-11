@@ -10,12 +10,12 @@ CREATE TABLE DNAS(id serial primary key, dna DNA);
 
 \COPY DNAS (dna) FROM 'filtered_input.tsv';
 
-\set nb_sequences 50000
+\set nb_sequences 50000 -- 50k rows, gives a reasonable time for testing
 -- Fill the kmers table with kmers generated FROM the DNA sequences
 WITH small_table AS (
     SELECT * 
     FROM DNAS 
-    WHERE id <= :nb_sequences      -- 100k rows, gives a reasonable time for testing
+    WHERE id <= :nb_sequences      
 )
 INSERT INTO kmers(kmer)
 SELECT k.kmer
