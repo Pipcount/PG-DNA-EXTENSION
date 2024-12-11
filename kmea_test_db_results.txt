@@ -1,0 +1,110 @@
+psql -d postgres -f kmea_test_db.sql
+
+
+DROP DATABASE
+CREATE DATABASE
+You are now connected to database "kmea" as user "oscar".
+CREATE EXTENSION
+CREATE TABLE
+CREATE TABLE
+COPY 777142
+INSERT 0 91524993
+INSERT 0 1536163
+CREATE INDEX
+                                                                                   DNA sequence                                                                                    
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ GGGGGGGGGAGGGATAGCATTAGGAGATATACCTAATGTAAATGATGAGTTAATGGGTGCAGCACACCAACATGGCACATGTATACATATGTAACAAACTTGCACGTTGTGCACATGTACCCTAGAACTTAAAGGTTGGAACCGAAAGGGTTTGAATTCTGAGCGGGCTGGCAAGGC
+(1 row)
+
+ id |         Generated kmer         
+----+--------------------------------
+  1 | GGGGGGGGGAGGGATAGCATTAGGAGATAT
+  2 | GGGGGGGGAGGGATAGCATTAGGAGATATA
+  3 | GGGGGGGAGGGATAGCATTAGGAGATATAC
+  4 | GGGGGGAGGGATAGCATTAGGAGATATACC
+  5 | GGGGGAGGGATAGCATTAGGAGATATACCT
+  6 | GGGGAGGGATAGCATTAGGAGATATACCTA
+  7 | GGGAGGGATAGCATTAGGAGATATACCTAA
+  8 | GGAGGGATAGCATTAGGAGATATACCTAAT
+  9 | GAGGGATAGCATTAGGAGATATACCTAATG
+ 10 | AGGGATAGCATTAGGAGATATACCTAATGT
+(10 rows)
+
+ Amount that equals ACTGC 
+--------------------------
+                     1537
+(1 row)
+
+ Amount that equals ACTGC 
+--------------------------
+                     1537
+(1 row)
+
+ Amount that starts with ACTG 
+------------------------------
+                       400300
+(1 row)
+
+ Amount that starts with ACTG 
+------------------------------
+                       400300
+(1 row)
+
+ Amount that matches HAWKNNSAYBBDHVDDNNNNDRVWMDDHDS 
+----------------------------------------------------
+                                                725
+(1 row)
+
+ Amount that matches HAWKNNSAYBBDHVDDNNNNDRVWMDDHDS 
+----------------------------------------------------
+                                                725
+(1 row)
+
+ kmer  | Amount of occurrences of the k-mers 
+-------+-------------------------------------
+ TTTTT |                                7341
+ AAAAA |                                6960
+ ATTTT |                                5648
+ AAAAT |                                5352
+ TTTCT |                                5033
+ TATTT |                                4903
+ AAATA |                                4707
+ TTTTA |                                4707
+ TAAAA |                                4677
+ CTGAG |                                4663
+(10 rows)
+
+ Total count | Distinct count | Unique count 
+-------------+----------------+--------------
+    93061156 |       79802383 |     74059427
+(1 row)
+
+SET
+                                                                 QUERY PLAN                                                                  
+---------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=1037197.06..1037197.07 rows=1 width=8) (actual time=976.650..979.568 rows=1 loops=1)
+   ->  Gather  (cost=1037196.85..1037197.06 rows=2 width=8) (actual time=976.461..979.526 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         ->  Partial Aggregate  (cost=1036196.85..1036196.86 rows=1 width=8) (actual time=969.281..969.282 rows=1 loops=3)
+               ->  Parallel Seq Scan on kmers  (cost=0.00..987727.50 rows=19387740 width=0) (actual time=44.454..967.987 rows=13299 loops=3)
+                     Filter: (kmer ^@ 'ACTGCA'::kmer)
+                     Rows Removed by Filter: 31007086
+ Planning Time: 0.085 ms
+ JIT:
+   Functions: 14
+   Options: Inlining true, Optimization true, Expressions true, Deforming true
+   Timing: Generation 0.481 ms, Inlining 77.684 ms, Optimization 32.071 ms, Emission 23.481 ms, Total 133.716 ms
+ Execution Time: 979.835 ms
+(14 rows)
+
+ Amount that starts with ACTGCA using SEQ SCAN 
+-----------------------------------------------
+                                         39897
+(1 row)
+
+SET
+ Amount that starts with ACTGCA using INDEX SCAN 
+-------------------------------------------------
+                                           39897
+(1 row)
